@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from core.models import UserDB
 from core.exceptions import AuthenticationRequiredError, MissingDataError
 from core.passwords import verify_password
@@ -23,7 +23,7 @@ def authenticate(username: str, password: str, db_session=None) -> "UserDB":
 
     # Initialize tracking for this username
     attempts = FAILED_ATTEMPTS.get(username, {"count": 0, "last_attempt": None, "locked_until": None})
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     # Check if user is currently locked
     if attempts.get("locked_until") and now < attempts["locked_until"]:
