@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from core.models import UserDB, ReminderDB
-from datetime import datetime
+from datetime import datetime, timezone
 
 class UserRepository:
     def __init__(self, db: Session):
@@ -48,7 +48,7 @@ class ReminderRepository:
 
     def delete_expired(self):
     
-        expired = self.db.query(ReminderDB).filter(ReminderDB.expires_at <= datetime.utcnow()).all()
+        expired = self.db.query(ReminderDB).filter(ReminderDB.expires_at <= datetime.now(timezone.utc)).all()
         for r in expired:
             self.db.delete(r)
         self.db.commit()

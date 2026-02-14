@@ -1,6 +1,6 @@
 import uuid
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from core.models import UserDB, ReminderDB
 from core.security import authorize, Role
 from core.exceptions import (MissingDataError,
@@ -61,7 +61,7 @@ class UserService:
             password_hash=password_hash,
             role=role,
             is_active=True,
-            created_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc)
         )
 
         # save
@@ -175,7 +175,7 @@ class ReminderService:
             raise ReminderTextTooLongError(len(text), MAX_TEXT_LENGTH)
 
         reminder_id = str(uuid.uuid4())
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         reminder = ReminderDB(
             id=reminder_id,
@@ -262,7 +262,7 @@ class ReminderService:
 
         # 5️⃣ Update fields
         reminder.text = new_text
-        reminder.updated_at = datetime.utcnow()
+        reminder.updated_at = datetime.now(timezone.utc)
 
         # 6️⃣ Persist changes
         reminder_repo.add(reminder)  # add() will commit and refresh
