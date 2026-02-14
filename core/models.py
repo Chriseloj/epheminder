@@ -1,24 +1,37 @@
-from datetime import datetime, timedelta
+from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, Text
+from sqlalchemy.orm import relationship
+from datetime import datetime
+from infrastructure.storage import Base
 from core.security import Role
-from core.exceptions import ReminderTextTooLongError
 
-class Reminder:
-    MAX_TEXT_LENGTH = 100
-    MAX_EXPIRATION_DAYS = 7 * 24 * 60 
+class UserDB(Base):
+    __tablename__ = "users"
 
-    def __init__(self, owner_id, text: str, expires_in_minutes: int):
-        if len(text) > self.MAX_TEXT_LENGTH:
-            raise ReminderTextTooLongError(len(text), self.MAX_TEXT_LENGTH)
-        
-        self.owner_id = owner_id
-        self.text = text
-        self.created_at = datetime.now()
+    id = Column(String, primary_key=True)  # UUID
+    username = Column(String(30), unique=True, nullable=False)
+    password_hash = Column(String, nullable=False)
+    role = Column(String(20), nullable=False)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
-        requested_expiration = timedelta(minutes=expires_in_minutes)
+    reminders = relationship("ReminderDB", back_populates="owner")
 
-        self.expires_at = self.created_at + requested_expiration
+    @property
+    def role_enum(self) -> Role:
+        """Return the role as a Role Enum for runtime use."""
+        return Role[self.role]
 
-class User:
-    def __init__(self, user_id, role: Role):
-        self.user_id = user_id        
-        self.role = role 
+    def __repr__(self):
+        return f"<UserDB(id={self.id}, username={self.username}, role={self.role}, active={self.is_active})>"
+
+class ReminderDB(Base):
+    __tablename__ = "reminders"
+
+    id = Column(String, primary_key=True)  # UUID
+    owner_id = Column(String, ForeignKey("users.id"), nullable=False)
+    text = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    expires_at = Column(DateTime, nullable=False)
+
+    owner = relationship("UserDB", back_populates="reminders")

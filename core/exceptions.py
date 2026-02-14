@@ -35,3 +35,53 @@ class ReminderTextTooLongError(ReminderError):
             log_message = f"Reminder text too long: {length} characters (max {max_length})"
         super().__init__(log_message)
         self.public_message = "Reminder text is too long"
+
+class AuthenticationRequiredError(ReminderError):
+    def __init__(self, log_message: str = "Authentication required"):
+        super().__init__(log_message)
+        self.public_message = "Authentication is required to perform this action"
+
+class InvalidPasswordError(ReminderError):
+    """Raised when a password does not meet security requirements."""
+    def __init__(self, reason: str = "Password does not meet security requirements", log_message: str = None):
+        if log_message is None:
+            log_message = f"Invalid password: {reason}"
+        super().__init__(log_message)
+        self.public_message = "Password is not secure enough"
+
+class InvalidUserError(ReminderError):
+    """Raised when a username is invalid (length, characters, etc.)"""
+    def __init__(self, username: str, reason: str = "Invalid username", log_message: str = None):
+        self.username = username
+        self.reason = reason
+        if log_message is None:
+            log_message = f"Invalid username attempt: {username}, reason: {reason}"  
+        super().__init__(log_message)
+        self.public_message = "Invalid credentials"
+
+
+class UsernameTakenError(ReminderError):
+    """Raised when trying to create a user with a username that already exists"""
+    def __init__(self, username: str, log_message: str = None):
+        self.username = username
+        if log_message is None:
+            log_message = f"Attempt to register already taken username: {username}"
+        super().__init__(log_message)
+        self.public_message = "Invalid credentials"
+
+
+class InvalidUUIDError(ReminderError):
+    """Raised when a UUID string is not valid"""
+    def __init__(self, uuid_str: str, log_message: str = None):
+        self.uuid_str = uuid_str
+        if log_message is None:
+            log_message = f"Invalid UUID format detected: {uuid_str}"
+        super().__init__(log_message)
+        self.public_message = "Identifier is invalid"
+
+class MissingDataError(ReminderError):
+    "Raised when db is missing"
+    def __init__(self, log_message: str = "An error occurred with the reminder"):
+                    
+        super().__init__(log_message)
+        self.public_message = "Internal error: missing reminder repository"
