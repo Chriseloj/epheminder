@@ -85,3 +85,10 @@ class MissingDataError(ReminderError):
                     
         super().__init__(log_message)
         self.public_message = "Internal error: missing reminder repository"
+
+class MaxRemindersReachedError(ReminderError):
+    """Raised when a user tries to create more reminders than allowed."""
+    
+    def __init__(self, log_message: str = "User attempted to exceed max reminders"):
+        super().__init__(log_message)
+        self.public_message = "You have reached the maximum number of allowed reminders"

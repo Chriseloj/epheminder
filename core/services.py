@@ -8,9 +8,10 @@ ReminderTextTooLongError,
 InvalidExpirationError,
 InvalidUserError,
 UsernameTakenError,
-InvalidUUIDError)
+InvalidUUIDError,
+MaxRemindersReachedError)
 from core.passwords import validate_password, hash_password
-from core.utils import MAX_EXPIRATION_MINUTES, MAX_TEXT_LENGTH
+from core.utils import MAX_EXPIRATION_MINUTES, MAX_TEXT_LENGTH, MAX_REMINDERS_PER_USER
 from infrastructure.repositories import UserRepository
 
 logger = logging.getLogger(__name__)
@@ -142,29 +143,36 @@ class ReminderService:
         - Enforces deny-by-default authorization, ensuring the user can create a reminder for themselves.
         - Converts the provided expiration (amount + unit) into total minutes using parse_expiration().
         - Validates reminder text length against MAX_TEXT_LENGTH.
+        - Enforces a maximum number of reminders per user.
         - Generates a unique UUID for the reminder.
         - Sets created_at, updated_at, and expires_at timestamps.
         - Persists the reminder using the repository.
         - Logs the creation event for auditing purposes.
 
-    Args:
-        user (UserDB): The authenticated user creating the reminder.
-        text (str): The reminder content.
-        amount (int): Time quantity for expiration.
-        unit (str): Time unit ("minutes", "hours", or "days").
-        reminder_repo: Reminder repository instance.
+        Args:
+            user (UserDB): The authenticated user creating the reminder.
+            text (str): The reminder content.
+            amount (int): Time quantity for expiration.
+            unit (str): Time unit ("minutes", "hours", or "days").
+            reminder_repo: Reminder repository instance.
 
-    Returns:
-        ReminderDB: The created reminder object.
+        Returns:
+            ReminderDB: The created reminder object.
 
-    Raises:
-        MissingDataError: If reminder_repo is not provided.
-        InvalidExpirationError: If expiration amount or unit is invalid.
-        ReminderTextTooLongError: If text exceeds MAX_TEXT_LENGTH.
-    """
+        Raises:
+            MissingDataError: If reminder_repo is not provided.
+            InvalidExpirationError: If expiration amount or unit is invalid.
+            ReminderTextTooLongError: If text exceeds MAX_TEXT_LENGTH.
+            MaxRemindersReachedError: If the user already has the maximum allowed reminders.
+        """
 
         if reminder_repo is None:
             raise MissingDataError()
+
+        # Check maximum reminders per user
+        current_count = len(ReminderService.list_reminders(user, reminder_repo=reminder_repo))
+        if current_count >= MAX_REMINDERS_PER_USER:
+            raise MaxRemindersReachedError(MAX_REMINDERS_PER_USER)
 
         authorize(user, "create", resource_owner_id=user.id)
 

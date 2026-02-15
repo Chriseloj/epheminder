@@ -11,6 +11,11 @@ from core.exceptions import (
     InvalidUUIDError
 )
 
+from unittest.mock import MagicMock
+from core.services import ReminderService
+from core.exceptions import MaxRemindersReachedError
+from core.utils import MAX_REMINDERS_PER_USER
+
 MAX_TEXT_LENGTH = 100  #  core/utils.py
 VALID_PASSWORD = "Password123!@#01"  # ≥15 characters
 
@@ -135,3 +140,28 @@ def test_auto_delete_expired_reminders(user, reminder_repo):
     ReminderService.auto_delete_expired_reminders(reminder_repo)
     all_reminders = reminder_repo.list_by_user(user.id)
     assert reminder.id not in [r.id for r in all_reminders]
+
+
+# ---------------------------
+# Test max reminder per user
+# ---------------------------
+
+def test_max_reminders_per_user(monkeypatch):
+    # Arrange: create a mock user and repository
+    user = MagicMock()
+    user.id = "user-123"
+    
+    mock_repo = MagicMock()
+
+    # Simulate the user already having the max allowed reminders
+    mock_repo.list_by_user.return_value = [MagicMock()] * MAX_REMINDERS_PER_USER
+
+    # Patch list_reminders to use our mock repository
+    monkeypatch.setattr(ReminderService, "list_reminders", lambda u, reminder_repo=None: mock_repo.list_by_user(u.id))
+
+    # Act & Assert: creating another reminder should raise MaxRemindersReachedError
+    with pytest.raises(MaxRemindersReachedError) as exc_info:
+        ReminderService.create_reminder(user, text="Test", amount=1, unit="days", reminder_repo=mock_repo)
+
+    # Optional: check the error message includes the max limit
+    assert str(MAX_REMINDERS_PER_USER) in str(exc_info.value)
