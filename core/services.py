@@ -314,42 +314,65 @@ class ReminderService:
         Delete all expired reminders from the database.
 
         - Uses ReminderRepository to fetch and delete expired reminders.
-        - Logs each deletion for auditing.
+        - Logs deletion for auditing purposes without exposing sensitive info.
+    
+        Returns:
+            int: Number of reminders deleted.
 
         Raises:
-            MissingDataError: if db_session is missing
+            MissingDataError: if reminder_repo is missing
         """
 
         if reminder_repo is None:
             raise MissingDataError()
 
-        # 1️⃣ Delete expired reminders via repository
+        # Delete expired reminders via repository
         expired = reminder_repo.delete_expired()
-        for r in expired:
-            logger.info(f"Expired reminder auto-deleted | ReminderID={r.id} | OwnerID={r.owner_id}")
+        count = len(expired)
+
+        # Log generic info without sensitive data
+        if count:
+            logger.info(f"Auto-deleted {count} expired reminders.")
+
+        return expired
 
     @staticmethod
     def list_reminders(user: "UserDB", reminder_repo=None):
         """
-        List all active reminders for a given user.
+        Retrieve all active reminders for a given user.
 
-        - Automatically deletes expired reminders before listing.
-        - Returns a list of ReminderDB objects.
+        This method fetches all reminders associated with the specified user
+        and filters out any reminders that have already expired. Expired
+        reminders are determined by comparing the `expires_at` timestamp
+        against the current UTC time. Both timezone-aware and naive
+        datetimes are supported for compatibility with older records.
+
+        Args:
+            user (UserDB): The user whose reminders are being retrieved.
+            reminder_repo: An instance of ReminderRepository used to fetch
+                        reminders from the database. Raises MissingDataError
+                        if not provided.
+
+        Returns:
+            List[ReminderDB]: A list of ReminderDB objects representing
+                                all active (non-expired) reminders for the user.
 
         Raises:
-            MissingDataError: if db_session is missing
+            MissingDataError: If `reminder_repo` is not provided.
         """
-
+        
         if reminder_repo is None:
             raise MissingDataError()
 
-        # 1️⃣ Auto-delete expired reminders
-        ReminderService.auto_delete_expired_reminders(reminder_repo=reminder_repo)
-
-        # 2️⃣ Fetch all reminders for the user
         reminders = reminder_repo.list_by_user(user.id)
+        now = datetime.now(timezone.utc)  # aware
 
-        return reminders
+        # Return only non-expired reminders
+        active = [
+            r for r in reminders 
+            if r.expires_at and r.expires_at.replace(tzinfo=timezone.utc) > now
+        ]
+        return active
     
     @staticmethod
     def parse_expiration(amount: int, unit: str, max_minutes: int = MAX_EXPIRATION_MINUTES) -> int:
