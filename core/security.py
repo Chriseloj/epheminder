@@ -55,8 +55,8 @@ def authorize(user, action: str, resource_owner_id=None):
         own = user.id == resource_owner_id
 
     # Check if the user's role has permission for the action
-    if not has_permission(user.role, action, own=own):
-        raise PermissionDeniedError(user.role.name, action)
+    if not has_permission(user.role_enum, action, own=own):
+        raise PermissionDeniedError(user.role_enum.name, action)
 
     # Authorization successful
     return True

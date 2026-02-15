@@ -54,12 +54,11 @@ class UserService:
 
         # Create UserDB
         user_id = str(uuid.uuid4())
-        role = role.name
         user = UserDB(
             id=user_id,
             username=username,
             password_hash=password_hash,
-            role=role,
+            role=role.name,
             is_active=True,
             created_at=datetime.now(timezone.utc)
         )
@@ -67,7 +66,7 @@ class UserService:
         # save
         repo.add(user)
 
-        logger.info(f"User created | Username={username} | Role={role} | ID={user_id}")
+        logger.info(f"User created | Username={username} | Role={user.role} | ID={user_id}")
 
         return user
         
@@ -176,6 +175,7 @@ class ReminderService:
 
         reminder_id = str(uuid.uuid4())
         now = datetime.now(timezone.utc)
+        expires_at = now + timedelta(minutes=expires_in_minutes)
 
         reminder = ReminderDB(
             id=reminder_id,
@@ -183,7 +183,7 @@ class ReminderService:
             text=text,
             created_at=now,
             updated_at=now,
-            expires_at=now + timedelta(minutes=expires_in_minutes)
+            expires_at=expires_at
         )
 
         reminder_repo.add(reminder)
