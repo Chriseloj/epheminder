@@ -9,18 +9,42 @@ InvalidExpirationError,
 InvalidUserError,
 UsernameTakenError,
 InvalidUUIDError,
-MaxRemindersReachedError)
+MaxRemindersReachedError,
+AuthenticationRequiredError)
 from core.passwords import validate_password, hash_password
 from core.utils import MAX_EXPIRATION_MINUTES, MAX_TEXT_LENGTH, MAX_REMINDERS_PER_USER
 from infrastructure.repositories import UserRepository
+from core.protection import check_rate_limit, apply_backoff
 
 logger = logging.getLogger(__name__)
+
+def rate_limited(user_param: str, ip_param: str):
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            user_id = kwargs.get(user_param)
+            ip = kwargs.get(ip_param)
+
+            # Fail-close if not IP
+            if not ip:
+                raise AuthenticationRequiredError("IP required for rate limiting")
+
+            # Check rate limit
+            check_rate_limit(user_id, ip)
+
+            try:
+                return func(*args, **kwargs)
+            finally:
+                # Backoff always applies
+                apply_backoff(user_id, ip)
+
+        return wrapper
+    return decorator
 
 # 🔐 UserService
 class UserService:
 
-    @staticmethod
-    def create_user(username: str, password: str, role: Role = Role.USER, db_session=None) -> "UserDB":
+    @rate_limited(user_param='user', ip_param='ip')
+    def create_user(username: str, password: str, role: Role = Role.USER, db_session=None, ip: str = None) -> "UserDB":
         """
         Create a new user in the database with validations.
 
@@ -33,6 +57,10 @@ class UserService:
             InvalidUserError: if username is invalid
             UsernameTakenError: if username already exists
             MissingDataError: if db_session is missing
+
+        Note:
+            This method is protected by the `@rate_limited` decorator,
+            which enforces rate limiting and automatic backoff based on user/IP.
         """
 
         if db_session is None:
@@ -135,8 +163,8 @@ class ReminderService:
         except ValueError:
             raise InvalidUUIDError(id_str)
     
-    @staticmethod
-    def create_reminder(user: "UserDB", text: str, amount: int, unit: str, reminder_repo=None) -> "ReminderDB":
+    @rate_limited(user_param='user', ip_param='ip')
+    def create_reminder(user: "UserDB", text: str, amount: int, unit: str, reminder_repo=None, ip: str = None) -> "ReminderDB":
         """
         Create a new reminder for the given user.
 
@@ -164,6 +192,10 @@ class ReminderService:
             InvalidExpirationError: If expiration amount or unit is invalid.
             ReminderTextTooLongError: If text exceeds MAX_TEXT_LENGTH.
             MaxRemindersReachedError: If the user already has the maximum allowed reminders.
+        
+        Note:
+            This method is protected by the `@rate_limited` decorator,
+            which enforces rate limiting and automatic backoff based on user/IP.
         """
 
         if reminder_repo is None:
@@ -232,8 +264,8 @@ class ReminderService:
 
         return reminder
     
-    @staticmethod
-    def update_reminder(user: "UserDB", reminder_id: str, new_text: str, reminder_repo=None) -> "ReminderDB":
+    @rate_limited(user_param='user', ip_param='ip')
+    def update_reminder(user: "UserDB", reminder_id: str, new_text: str, reminder_repo=None, ip: str = None) -> "ReminderDB":
         """
         Update the text of a reminder for the given user.
 
@@ -247,7 +279,9 @@ class ReminderService:
             MissingDataError: if db_session is missing
             ReminderTextTooLongError: to validate lenght
 
-
+        Note:
+            This method is protected by the `@rate_limited` decorator,
+            which enforces rate limiting and automatic backoff based on user/IP.
         """
 
         if reminder_repo is None:
@@ -280,8 +314,8 @@ class ReminderService:
 
         return reminder
     
-    @staticmethod
-    def delete_reminder(user: "UserDB", reminder_id: str, reminder_repo=None) -> bool:
+    @rate_limited(user_param='user', ip_param='ip')
+    def delete_reminder(user: "UserDB", reminder_id: str, reminder_repo=None, ip: str = None) -> bool:
         """
         Delete a reminder by ID for the given user.
 
@@ -292,6 +326,10 @@ class ReminderService:
 
         Raises:
             MissingDataError: if db_session is missing
+
+        Note:
+            This method is protected by the `@rate_limited` decorator,
+            which enforces rate limiting and automatic backoff based on user/IP.
         """
 
         if reminder_repo is None:
