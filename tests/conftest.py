@@ -6,8 +6,17 @@ from infrastructure.storage import Base
 from infrastructure.repositories import UserRepository, ReminderRepository
 from core.models import UserDB
 from core.security import Role
-from core.protection import FAILED_ATTEMPTS
+from unittest.mock import MagicMock, patch
+from datetime import datetime, timedelta
+from core.models import ReminderDB 
 
+import os
+os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
+import core.protection as protection
+
+@pytest.fixture
+def ip():
+    return "127.0.0.1"
 
 # ---------------------------
 # DATABASE (isolated per test)
@@ -22,17 +31,15 @@ def engine():
     Base.metadata.create_all(bind=engine)
     yield engine
     Base.metadata.drop_all(bind=engine)
+    engine.dispose()  # 🔹 Force all close conections
 
 
 @pytest.fixture(scope="function")
-def db_session():
-    engine = create_engine("sqlite:///:memory:", echo=False, future=True)
-    Base.metadata.create_all(engine)
+def db_session(engine):
     Session = sessionmaker(bind=engine)
     session = Session()
     yield session
     session.close()
-    engine.dispose()  
 
 # ---------------------------
 # REPOSITORIES
@@ -53,11 +60,20 @@ def reminder_repo(db_session):
 # ---------------------------
 
 @pytest.fixture(autouse=True)
-def clean_failed_attempts():
-    FAILED_ATTEMPTS.clear()
-    yield
-    FAILED_ATTEMPTS.clear()
+def mock_redis_client(monkeypatch):
+    fake_client = MagicMock()
+    fake_client.get.return_value = None
+    fake_client.incr.return_value = 1
+    fake_client.set.return_value = True
+    fake_client.delete.return_value = True
+    monkeypatch.setattr(protection, "get_redis_client", lambda: fake_client)
+    monkeypatch.setattr(protection, "r", fake_client)
+    return fake_client
 
+@pytest.fixture(autouse=True)
+def reset_fake_redis(mock_redis_client):
+    mock_redis_client.reset_mock()
+    yield
 
 # ---------------------------
 # SAMPLE USERS
@@ -87,3 +103,20 @@ def admin(db_session, user_repo):
     )
     user_repo.add(admin)
     return admin
+
+
+@pytest.fixture
+def reminders(user, reminder_repo):
+    reminders = []
+    for i in range(3):
+        reminder = ReminderDB(
+            id=str(i),
+            owner_id=user.id,
+            text=f"Reminder {i}",
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+            expires_at=datetime.now() + timedelta(hours=1)
+        )
+        reminder_repo.add(reminder)
+        reminders.append(reminder)
+    return reminders
