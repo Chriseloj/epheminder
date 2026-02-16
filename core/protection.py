@@ -38,8 +38,11 @@ def get_redis_client() -> redis.Redis:
         health_check_interval=30,
     )
 
+def _get_redis():
+    return get_redis_client()
+
 # Global Redis client
-r = get_redis_client()
+r = _get_redis()
 
 
 # --------------------------- Helper Functions ---------------------------
@@ -107,21 +110,30 @@ def _get_key(user_id: str, ip: str) -> str:
 
 def check_lock(user_id: str, ip: str):
     """
-    Check if a user/IP combination is currently locked or globally blocked.
-    Raises AuthenticationRequiredError if locked.
+    Checks whether a user/IP combination is currently locked due to failed login attempts,
+    including both IP-specific and global locks.
+
+    Implements fail-closed behavior: if Redis cannot be reached, login is blocked.
 
     Args:
-        user_id (str): User ID
-        ip (str): IP address
+        user_id (str): The unique identifier of the user.
+        ip (str): The IP address of the client.
 
     Raises:
-        AuthenticationRequiredError: If the account is locked or cannot verify
+        ValueError: If user_id or ip are missing.
+        AuthenticationRequiredError: If the account is temporarily locked (IP or global),
+            or if Redis verification fails.
     """
+
+    if not user_id or not ip:
+        raise ValueError("user_id and ip are required")
+
     redis_key = _get_key(user_id, ip)
     lock_key = f"{redis_key}:lock"
     now = datetime.now(timezone.utc)
 
     try:
+
         # 🔹 IP-specific lock check
         locked_until_raw = r.get(lock_key)
         if locked_until_raw:
@@ -131,9 +143,19 @@ def check_lock(user_id: str, ip: str):
 
         # 🔹 Global attempts lock
         global_key = _get_global_key(user_id)
-        global_attempts = int(r.get(global_key) or 0)
-        if global_attempts >= GLOBAL_MAX_ATTEMPTS:
+        global_lock_key = f"{global_key}:lock"
+        global_locked_until_raw = r.get(global_lock_key)
+
+        if global_locked_until_raw:
+            global_locked_until = _parse_datetime_safe(
+            global_locked_until_raw,
+            global_lock_key,
+            "global_locked_until"
+        )
+
+        if global_locked_until and now < global_locked_until:
             raise AuthenticationRequiredError("Account temporarily locked (global)")
+        
 
     except redis.RedisError:
         logger.error("Redis error during lock check", exc_info=True)
@@ -143,15 +165,22 @@ def check_lock(user_id: str, ip: str):
 
 def check_rate_limit(user_id: str, ip: str):
     """
-    Enforces a minimum time between login attempts to prevent rapid retries.
+    Enforces a minimum interval between login attempts from the same IP.
+    Prevents rapid retries (rate limiting).
 
     Args:
-        user_id (str): User ID
-        ip (str): IP address
+        user_id (str): The unique identifier of the user.
+        ip (str): The IP address of the client.
 
     Raises:
+        ValueError: If user_id or ip are missing.
         AuthenticationRequiredError: If attempts are too frequent
+            or Redis cannot be queried.
     """
+
+    if not user_id or not ip:
+        raise ValueError("user_id and ip are required")
+    
     redis_key = _get_key(user_id, ip)
     last_key = f"{redis_key}:last"
     now = datetime.now(timezone.utc)
@@ -169,13 +198,23 @@ def check_rate_limit(user_id: str, ip: str):
 
 def apply_backoff(user_id: str, ip: str):
     """
-    Increments attempt counters and applies exponential backoff locks
-    if the number of failed login attempts exceeds limits.
+    Increments failed login attempt counters and applies locks with exponential backoff.
+
+    - IP-specific lock: triggers after MAX_ATTEMPTS from same IP.
+    - Global lock: triggers after GLOBAL_MAX_ATTEMPTS across all IPs.
+    - Uses Redis SET NX to avoid overwriting existing locks.
 
     Args:
-        user_id (str): User ID
-        ip (str): IP address
+        user_id (str): The unique identifier of the user.
+        ip (str): The IP address of the client.
+
+    Raises:
+        ValueError: If user_id or ip are missing.
     """
+
+    if not user_id or not ip:
+        raise ValueError("user_id and ip are required")
+    
     redis_key = _get_key(user_id, ip)
     global_key = _get_global_key(user_id)
     now = datetime.now(timezone.utc)
@@ -197,34 +236,60 @@ def apply_backoff(user_id: str, ip: str):
             exponent = attempt_count - MAX_ATTEMPTS
             lock_minutes = min(LOCK_MINUTES * (BACKOFF_MULTIPLIER ** exponent), MAX_LOCK_MINUTES)
             locked_until = now + timedelta(minutes=lock_minutes)
-            r.set(f"{redis_key}:lock", locked_until.isoformat(), ex=KEY_TTL_SECONDS)
+            r.set(
+                f"{redis_key}:lock",
+                locked_until.isoformat(),
+                ex=KEY_TTL_SECONDS,
+                nx=True
+            )
+
             logger.warning(
                 "User locked (IP)",
                 extra={"user_hash": redis_key, "attempt_count": attempt_count, "lock_minutes": lock_minutes},
             )
+        global_lock_key = f"{global_key}:lock"
 
         # 🔹 Apply global lock if exceeded
         if global_attempts >= GLOBAL_MAX_ATTEMPTS:
+            global_lock_key = f"{global_key}:lock"
             locked_until = now + timedelta(minutes=MAX_LOCK_MINUTES)
-            r.set(f"{redis_key}:lock", locked_until.isoformat(), ex=KEY_TTL_SECONDS)
-            logger.warning(
-                "User globally locked",
-                extra={"user_hash": redis_key, "global_attempts": global_attempts},
+
+            r.set(
+                global_lock_key,
+                locked_until.isoformat(),
+                ex=KEY_TTL_SECONDS,
+                nx=True
             )
 
+            logger.warning(
+                "User globally locked",
+                extra={
+                    "user_hash": global_key,
+                    "global_attempts": global_attempts,
+                },
+        )
     except redis.RedisError:
         logger.error("Redis error in apply_backoff", exc_info=True)
 
 
 def reset_attempts(user_id: str, ip: str):
     """
-    Clears login attempt counters and locks for a specific user/IP combination
-    and the global attempt counter.
+    Resets the failed login attempts and locks for a specific user/IP combination.
+
+    The global attempt counter is deliberately preserved to prevent bypassing
+    security with distributed attacks.
 
     Args:
-        user_id (str): User ID
-        ip (str): IP address
+        user_id (str): The unique identifier of the user.
+        ip (str): The IP address of the client.
+
+    Raises:
+        ValueError: If user_id or ip are missing.
     """
+
+    if not user_id or not ip:
+        raise ValueError("user_id and ip are required")
+    
     redis_key = _get_key(user_id, ip)
     global_key = _get_global_key(user_id)
 
@@ -232,6 +297,5 @@ def reset_attempts(user_id: str, ip: str):
         r.delete(redis_key)
         r.delete(f"{redis_key}:lock")
         r.delete(f"{redis_key}:last")
-        r.delete(global_key)
     except redis.RedisError:
         logger.error("Redis error during reset", exc_info=True)
