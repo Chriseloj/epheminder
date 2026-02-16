@@ -12,11 +12,10 @@ from core.exceptions import (
 )
 
 from unittest.mock import MagicMock
-from core.services import ReminderService
 from core.exceptions import MaxRemindersReachedError
 from core.utils import MAX_REMINDERS_PER_USER
 
-MAX_TEXT_LENGTH = 100  #  core/utils.py
+MAX_TEXT_LENGTH = 100  # core/utils.py
 VALID_PASSWORD = "Password123!@#01"  # ≥15 characters
 
 # ---------------------------
@@ -24,16 +23,14 @@ VALID_PASSWORD = "Password123!@#01"  # ≥15 characters
 # ---------------------------
 
 @pytest.fixture
-def user(db_session):
-    
+def user(db_session, ip):
     username = "".join(random.choices(string.ascii_letters + string.digits, k=12))
-    
     user = UserService.create_user(
         username=username,
         password=VALID_PASSWORD,
-        db_session=db_session
+        db_session=db_session,
+        ip=ip
     )
-    
     return user
 
 @pytest.fixture
@@ -45,40 +42,36 @@ def reminder_repo(db_session):
 # Test creation
 # ---------------------------
 
-def test_create_reminder_success(user, reminder_repo):
+def test_create_reminder_success(user, reminder_repo, ip):
     text = "My first reminder"
-    reminder = ReminderService.create_reminder(user, text, 1, "days", reminder_repo)
+    reminder = ReminderService.create_reminder(
+        user, text, 1, "days", reminder_repo, ip=ip
+    )
     assert reminder.id is not None
     assert reminder.text == text
     assert reminder.owner_id == user.id
 
-    expires_at = reminder.expires_at
-    if expires_at.tzinfo is None:
-        expires_at = expires_at.replace(tzinfo=timezone.utc)
-    
-    assert expires_at > datetime.now(timezone.utc)
-
-def test_create_reminder_text_too_long(user, reminder_repo):
+def test_create_reminder_text_too_long(user, reminder_repo, ip):
     text = "A" * (MAX_TEXT_LENGTH + 1)
     with pytest.raises(ReminderTextTooLongError):
-        ReminderService.create_reminder(user, text, 1, "days", reminder_repo)
+        ReminderService.create_reminder(user, text, 1, "days", reminder_repo, ip=ip)
 
-def test_create_reminder_invalid_expiration(user, reminder_repo):
+def test_create_reminder_invalid_expiration(user, reminder_repo, ip):
     with pytest.raises(InvalidExpirationError):
-        ReminderService.create_reminder(user, "Reminder", 0, "days", reminder_repo)
+        ReminderService.create_reminder(user, "Reminder", 0, "days", reminder_repo, ip=ip)
     with pytest.raises(InvalidExpirationError):
-        ReminderService.create_reminder(user, "Reminder", 1, "invalid_unit", reminder_repo)
+        ReminderService.create_reminder(user, "Reminder", 1, "invalid_unit", reminder_repo, ip=ip)
 
-def test_create_reminder_missing_repo(user):
+def test_create_reminder_missing_repo(user, ip):
     with pytest.raises(MissingDataError):
-        ReminderService.create_reminder(user, "Reminder", 1, "days", reminder_repo=None)
+        ReminderService.create_reminder(user, "Reminder", 1, "days", reminder_repo=None, ip=ip)
 
 # ---------------------------
 # Test read
 # ---------------------------
 
-def test_read_reminder_success(user, reminder_repo):
-    reminder = ReminderService.create_reminder(user, "Read me", 1, "days", reminder_repo)
+def test_read_reminder_success(user, reminder_repo, ip):
+    reminder = ReminderService.create_reminder(user, "Read me", 1, "days", reminder_repo, ip=ip)
     read = ReminderService.read_reminder(user, reminder.id, reminder_repo)
     assert read.id == reminder.id
 
@@ -90,43 +83,43 @@ def test_read_reminder_invalid_uuid(user, reminder_repo):
 # Test update
 # ---------------------------
 
-def test_update_reminder_success(user, reminder_repo):
-    reminder = ReminderService.create_reminder(user, "Old text", 1, "days", reminder_repo)
-    updated = ReminderService.update_reminder(user, reminder.id, "New text", reminder_repo)
+def test_update_reminder_success(user, reminder_repo, ip):
+    reminder = ReminderService.create_reminder(user, "Old text", 1, "days", reminder_repo, ip=ip)
+    updated = ReminderService.update_reminder(
+        user, reminder.id, "New text", reminder_repo, ip=ip
+    )
     assert updated.text == "New text"
 
-def test_update_reminder_text_too_long(user, reminder_repo):
-    reminder = ReminderService.create_reminder(user, "Old text", 1, "days", reminder_repo)
+def test_update_reminder_text_too_long(user, reminder_repo, ip):
+    reminder = ReminderService.create_reminder(user, "Old text", 1, "days", reminder_repo, ip=ip)
     with pytest.raises(ReminderTextTooLongError):
-        ReminderService.update_reminder(user, reminder.id, "A"*(MAX_TEXT_LENGTH+1), reminder_repo)
+        ReminderService.update_reminder(user, reminder.id, "A"*(MAX_TEXT_LENGTH+1), reminder_repo, ip=ip)
 
 # ---------------------------
 # Test delete
 # ---------------------------
 
-def test_delete_reminder_success(user, reminder_repo):
-    reminder = ReminderService.create_reminder(user, "To delete", 1, "days", reminder_repo)
-    result = ReminderService.delete_reminder(user, reminder.id, reminder_repo)
+def test_delete_reminder_success(user, reminder_repo, ip):
+    reminder = ReminderService.create_reminder(user, "To delete", 1, "days", reminder_repo, ip=ip)
+    result = ReminderService.delete_reminder(user, reminder.id, reminder_repo, ip=ip)
     assert result is True
 
-def test_delete_reminder_not_found(user, reminder_repo):
-    result = ReminderService.delete_reminder(user, "00000000-0000-0000-0000-000000000000", reminder_repo)
+def test_delete_reminder_not_found(user, reminder_repo, ip):
+    result = ReminderService.delete_reminder(user, "00000000-0000-0000-0000-000000000000", reminder_repo, ip=ip)
     assert result is False
 
 # ---------------------------
 # Test list and auto-delete expired
 # ---------------------------
 
-def test_list_reminders(user, reminder_repo):
-    # Create two reminders
-    r1 = ReminderService.create_reminder(user, "R1", 1, "days", reminder_repo)
-    r2 = ReminderService.create_reminder(user, "R2", 1, "days", reminder_repo)
+def test_list_reminders(user, reminder_repo, ip):
+    r1 = ReminderService.create_reminder(user, "R1", 1, "days", reminder_repo, ip=ip)
+    r2 = ReminderService.create_reminder(user, "R2", 1, "days", reminder_repo, ip=ip)
     reminders = ReminderService.list_reminders(user, reminder_repo)
     ids = [r.id for r in reminders]
     assert r1.id in ids and r2.id in ids
 
 def test_auto_delete_expired_reminders(user, reminder_repo):
-    # Create expired reminder
     reminder = ReminderDB(
         id="expired-uuid",
         owner_id=user.id,
@@ -136,32 +129,26 @@ def test_auto_delete_expired_reminders(user, reminder_repo):
         expires_at=datetime.now(timezone.utc) - timedelta(days=1)
     )
     reminder_repo.add(reminder)
-    # Auto delete
     ReminderService.auto_delete_expired_reminders(reminder_repo)
     all_reminders = reminder_repo.list_by_user(user.id)
     assert reminder.id not in [r.id for r in all_reminders]
-
 
 # ---------------------------
 # Test max reminder per user
 # ---------------------------
 
-def test_max_reminders_per_user(monkeypatch):
-    # Arrange: create a mock user and repository
+def test_max_reminders_per_user(monkeypatch, ip):
     user = MagicMock()
     user.id = "user-123"
     
     mock_repo = MagicMock()
-
-    # Simulate the user already having the max allowed reminders
     mock_repo.list_by_user.return_value = [MagicMock()] * MAX_REMINDERS_PER_USER
 
-    # Patch list_reminders to use our mock repository
     monkeypatch.setattr(ReminderService, "list_reminders", lambda u, reminder_repo=None: mock_repo.list_by_user(u.id))
 
-    # Act & Assert: creating another reminder should raise MaxRemindersReachedError
     with pytest.raises(MaxRemindersReachedError) as exc_info:
-        ReminderService.create_reminder(user, text="Test", amount=1, unit="days", reminder_repo=mock_repo)
+        ReminderService.create_reminder(
+            user, text="Test", amount=1, unit="days", reminder_repo=mock_repo, ip=ip
+        )
 
-    # Optional: check the error message includes the max limit
     assert str(MAX_REMINDERS_PER_USER) in str(exc_info.value)

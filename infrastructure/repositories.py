@@ -1,6 +1,8 @@
 from sqlalchemy.orm import Session
 from core.models import UserDB, ReminderDB
 from datetime import datetime, timezone
+from core.utils import MAX_REMINDERS_PER_USER
+from core.exceptions import MaxRemindersReachedError
 
 class UserRepository:
     def __init__(self, db: Session):
@@ -31,6 +33,16 @@ class ReminderRepository:
         self.db = db
 
     def add(self, reminder: ReminderDB):
+        # 🔹 Validation: count actives reminders before add
+        active_count = self.db.query(ReminderDB).filter(
+            ReminderDB.owner_id == reminder.owner_id,
+            ReminderDB.expires_at > datetime.now(timezone.utc)
+        ).count()
+
+        if active_count >= MAX_REMINDERS_PER_USER:
+            raise MaxRemindersReachedError(MAX_REMINDERS_PER_USER)
+
+        # 🔹 Save if not surpass limit
         self.db.add(reminder)
         self.db.commit()
         self.db.refresh(reminder)

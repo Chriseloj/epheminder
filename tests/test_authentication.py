@@ -10,7 +10,7 @@ class DummyRepo:
     def get_by_username(self, username):
         return self.users.get(username)
 
-def test_authenticate_success(monkeypatch):
+def test_authenticate_success(monkeypatch, ip):
     user = UserDB(
         id="1",
         username="test",
@@ -20,18 +20,17 @@ def test_authenticate_success(monkeypatch):
     )
     users = {"test": user}
 
-    # Monkeypatch with namespace used by authenticate
     monkeypatch.setattr(
         "core.authentication.UserRepository",
         lambda db: DummyRepo(users)
     )
-
     monkeypatch.setattr("core.authentication.verify_password", lambda pw, hash_: True)
 
-    result = authenticate("test", "any", db_session=object())
+    result = authenticate("test", "any", db_session=object(), ip=ip)
     assert result == user
 
-def test_authenticate_wrong_password(monkeypatch):
+
+def test_authenticate_wrong_password(monkeypatch, ip):
     user = UserDB(
         id="1",
         username="test",
@@ -48,4 +47,4 @@ def test_authenticate_wrong_password(monkeypatch):
     monkeypatch.setattr("core.authentication.verify_password", lambda pw, hash_: False)
 
     with pytest.raises(AuthenticationRequiredError):
-        authenticate("test", "wrong", db_session=object())
+        authenticate("test", "wrong", db_session=object(), ip=ip)
