@@ -18,3 +18,5 @@ try:
 except FileNotFoundError:
    
     pass
+
+Base.metadata.create_all(bind=engine)
