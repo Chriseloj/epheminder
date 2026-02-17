@@ -18,7 +18,7 @@ def test_create_user_success(db_session, username, password):
         db_session=db_session,
     )
     assert user.id is not None
-    assert user.username == username
+    assert user.username == username.strip().lower()
     assert user.role_enum == Role.USER
     assert user.is_active is True
 
