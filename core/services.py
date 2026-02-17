@@ -43,24 +43,30 @@ def rate_limited(user_param: str, ip_param: str):
 # 🔐 UserService
 class UserService:
 
-    @rate_limited(user_param='user', ip_param='ip')
-    def create_user(username: str, password: str, role: Role = Role.USER, db_session=None, ip: str = None) -> "UserDB":
+    @staticmethod
+    def create_user(username: str, password: str, role: Role = Role.USER, db_session=None) -> "UserDB":
         """
-        Create a new user in the database with validations.
+        Create a new user in the database with validation.
 
-        - username: alphanumeric string, 3-30 characters
-        - password: must meet security requirements
-        - role: user's role (Role enum)
-        - db_session: SQLAlchemy Session instance
+        - Validates username (alphanumeric, 3-30 characters).
+        - Validates password according to security rules.
+        - Ensures username is unique.
+        - Generates user ID and created_at timestamp automatically.
+        - Persists the user in the provided database session.
+
+        Args:
+            username (str): Desired username for the new user.
+            password (str): User password to be hashed and stored.
+            role (Role, optional): User role; defaults to Role.USER.
+            db_session: SQLAlchemy Session instance. Required.
+
+        Returns:
+            UserDB: The newly created user object.
 
         Raises:
-            InvalidUserError: if username is invalid
-            UsernameTakenError: if username already exists
-            MissingDataError: if db_session is missing
-
-        Note:
-            This method is protected by the `@rate_limited` decorator,
-            which enforces rate limiting and automatic backoff based on user/IP.
+            MissingDataError: If db_session is not provided.
+            InvalidUserError: If username is invalid.
+            UsernameTakenError: If username already exists.
         """
 
         if db_session is None:
@@ -163,39 +169,35 @@ class ReminderService:
         except ValueError:
             raise InvalidUUIDError(id_str)
     
-    @rate_limited(user_param='user', ip_param='ip')
-    def create_reminder(user: "UserDB", text: str, amount: int, unit: str, reminder_repo=None, ip: str = None) -> "ReminderDB":
+    @staticmethod
+    def create_reminder(user: "UserDB", text: str, amount: int, unit: str, reminder_repo=None) -> "ReminderDB":
         """
-        Create a new reminder for the given user.
+        Create a new reminder for a given user.
 
-        - Enforces deny-by-default authorization, ensuring the user can create a reminder for themselves.
-        - Converts the provided expiration (amount + unit) into total minutes using parse_expiration().
         - Validates reminder text length against MAX_TEXT_LENGTH.
-        - Enforces a maximum number of reminders per user.
+        - Ensures the user does not exceed the maximum number of reminders.
+        - Converts expiration time (amount + unit) into total minutes.
         - Generates a unique UUID for the reminder.
-        - Sets created_at, updated_at, and expires_at timestamps.
-        - Persists the reminder using the repository.
-        - Logs the creation event for auditing purposes.
+        - Sets created_at, updated_at, and expires_at timestamps automatically.
+        - Persists the reminder in the provided repository.
+        - Enforces deny-by-default authorization (user can only create reminders for themselves).
+        - Logs creation for auditing purposes.
 
         Args:
-            user (UserDB): The authenticated user creating the reminder.
-            text (str): The reminder content.
-            amount (int): Time quantity for expiration.
-            unit (str): Time unit ("minutes", "hours", or "days").
-            reminder_repo: Reminder repository instance.
+            user (UserDB): The user creating the reminder.
+            text (str): Content of the reminder.
+            amount (int): Quantity of time for expiration.
+            unit (str): Unit of time ("minutes", "hours", "days").
+            reminder_repo: Reminder repository instance. Required.
 
         Returns:
-            ReminderDB: The created reminder object.
+            ReminderDB: The newly created reminder object.
 
         Raises:
             MissingDataError: If reminder_repo is not provided.
-            InvalidExpirationError: If expiration amount or unit is invalid.
-            ReminderTextTooLongError: If text exceeds MAX_TEXT_LENGTH.
+            InvalidExpirationError: If the expiration amount or unit is invalid.
+            ReminderTextTooLongError: If the text exceeds MAX_TEXT_LENGTH.
             MaxRemindersReachedError: If the user already has the maximum allowed reminders.
-        
-        Note:
-            This method is protected by the `@rate_limited` decorator,
-            which enforces rate limiting and automatic backoff based on user/IP.
         """
 
         if reminder_repo is None:
@@ -264,24 +266,32 @@ class ReminderService:
 
         return reminder
     
-    @rate_limited(user_param='user', ip_param='ip')
-    def update_reminder(user: "UserDB", reminder_id: str, new_text: str, reminder_repo=None, ip: str = None) -> "ReminderDB":
+    @staticmethod
+    def update_reminder(user: "UserDB", reminder_id: str, new_text: str, reminder_repo=None) -> "ReminderDB":
         """
-        Update the text of a reminder for the given user.
+        Update the text of an existing reminder for the given user.
 
-        - Validates UUID format.
-        - Enforces authorization (deny-by-default).
-        - Validates text length.
-        - Persists changes using ReminderRepository.
-        - Returns the updated ReminderDB object or None if not found.
+        - Validates that `reminder_id` is a proper UUID.
+        - Enforces deny-by-default authorization (user can only update their own reminders).
+        - Validates that the new text does not exceed MAX_TEXT_LENGTH.
+        - Updates the reminder's text and automatically sets `updated_at` to the current UTC time.
+        - Persists changes via the provided repository.
+        - Logs the update for auditing purposes.
+
+        Args:
+            user (UserDB): The user updating the reminder.
+            reminder_id (str): UUID of the reminder to update.
+            new_text (str): The updated reminder text.
+            reminder_repo: Reminder repository instance. Required.
+
+        Returns:
+            ReminderDB: The updated reminder object if found.
+            None: If the reminder does not exist.
 
         Raises:
-            MissingDataError: if db_session is missing
-            ReminderTextTooLongError: to validate lenght
+            MissingDataError: If `reminder_repo` is not provided.
+            ReminderTextTooLongError: If `new_text` exceeds MAX_TEXT_LENGTH.
 
-        Note:
-            This method is protected by the `@rate_limited` decorator,
-            which enforces rate limiting and automatic backoff based on user/IP.
         """
 
         if reminder_repo is None:
@@ -314,22 +324,26 @@ class ReminderService:
 
         return reminder
     
-    @rate_limited(user_param='user', ip_param='ip')
-    def delete_reminder(user: "UserDB", reminder_id: str, reminder_repo=None, ip: str = None) -> bool:
+    @staticmethod
+    def delete_reminder(user: "UserDB", reminder_id: str, reminder_repo=None) -> bool:
         """
-        Delete a reminder by ID for the given user.
+        Delete a reminder by its ID for the given user.
 
-        - Validates UUID format.
-        - Enforces authorization (deny-by-default).
-        - Deletes the reminder from the database.
-        - Returns True if deleted, False if not found.
+        - Validates that `reminder_id` is a proper UUID.
+        - Enforces deny-by-default authorization (user can only delete their own reminders).
+        - Deletes the reminder from the repository.
+        - Logs the deletion for auditing purposes.
+
+        Args:
+            user (UserDB): The user attempting to delete the reminder.
+            reminder_id (str): UUID of the reminder to delete.
+            reminder_repo: Reminder repository instance. Required.
+
+        Returns:
+            bool: True if the reminder was deleted, False if the reminder was not found.
 
         Raises:
-            MissingDataError: if db_session is missing
-
-        Note:
-            This method is protected by the `@rate_limited` decorator,
-            which enforces rate limiting and automatic backoff based on user/IP.
+            MissingDataError: If `reminder_repo` is not provided.
         """
 
         if reminder_repo is None:
