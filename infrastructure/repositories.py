@@ -20,8 +20,6 @@ class UserRepository:
 
     def get_by_id(self, user_id: str):
         user = self.db.query(UserDB).filter(UserDB.id == user_id).first()
-        if user:
-            user.role = user.role_enum  # Transform string to Enum
         return user
 
     def get_by_username(self, username: str):

@@ -26,5 +26,8 @@ dist/
 Thumbs.db
 
 # Coverage
-
 .coverage
+
+# Ignore SQLite database
+database.db
+*.db

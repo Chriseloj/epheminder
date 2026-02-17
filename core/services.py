@@ -69,6 +69,8 @@ class UserService:
             UsernameTakenError: If username already exists.
         """
 
+        username = username.strip().lower()
+        
         if db_session is None:
             raise MissingDataError()
         
@@ -130,6 +132,23 @@ class UserService:
         user = repo.get_by_id(user_id)
 
         return user  
+    
+    @staticmethod
+    def get_user_by_username(username: str, db_session=None) -> "UserDB":
+        """
+        Retrieve a user by username.
+
+        Args:
+            username (str): username to search
+            db_session: SQLAlchemy session
+
+        Returns:
+            UserDB if found, else None
+        """
+        if db_session is None:
+            raise MissingDataError()
+        repo = UserRepository(db_session)
+        return repo.get_by_username(username)
 
 # 🔐 ReminderService
 class ReminderService:

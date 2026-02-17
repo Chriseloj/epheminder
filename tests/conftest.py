@@ -6,9 +6,12 @@ from infrastructure.storage import Base
 from infrastructure.repositories import UserRepository, ReminderRepository
 from core.models import UserDB
 from core.security import Role
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 from datetime import datetime, timedelta
-from core.models import ReminderDB 
+from core.models import ReminderDB
+import pytest
+from infrastructure.storage import Base
+from core.models import UserDB, ReminderDB
 
 import os
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
@@ -24,24 +27,24 @@ def ip():
 
 @pytest.fixture(scope="function")
 def engine():
+    # ⚡ SQLite en memoria para cada test
     engine = create_engine(
-        "sqlite:///:memory:",
-        connect_args={"check_same_thread": False},
+        "sqlite:///:memory:", 
+        connect_args={"check_same_thread": False}
     )
     Base.metadata.create_all(bind=engine)
     yield engine
-    Base.metadata.drop_all(bind=engine)
-    engine.dispose()  # 🔹 Force all close conections
-
+    engine.dispose()
 
 @pytest.fixture(scope="function")
 def db_session(engine):
     Session = sessionmaker(bind=engine)
     session = Session()
-    yield session
-    session.close()
+    try:
+        yield session
+    finally:
+        session.close()
 
-# ---------------------------
 # REPOSITORIES
 # ---------------------------
 
