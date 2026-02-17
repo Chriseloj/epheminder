@@ -117,11 +117,11 @@ def check_lock(user_id: str, ip: str):
 
     Args:
         user_id (str): The unique identifier of the user.
-        ip (str): The IP address of the client.
+        ip (str): The IP address of the client. Required for IP-specific lock checks.
 
     Raises:
         ValueError: If user_id or ip are missing.
-        AuthenticationRequiredError: If the account is temporarily locked (IP or global),
+        AuthenticationRequiredError: If the account is temporarily locked (IP-specific or global),
             or if Redis verification fails.
     """
 
@@ -144,14 +144,16 @@ def check_lock(user_id: str, ip: str):
         # 🔹 Global attempts lock
         global_key = _get_global_key(user_id)
         global_lock_key = f"{global_key}:lock"
+
         global_locked_until_raw = r.get(global_lock_key)
+        global_locked_until = None
 
         if global_locked_until_raw:
             global_locked_until = _parse_datetime_safe(
-            global_locked_until_raw,
-            global_lock_key,
-            "global_locked_until"
-        )
+                global_locked_until_raw,
+                global_lock_key,
+                "global_locked_until"
+            )
 
         if global_locked_until and now < global_locked_until:
             raise AuthenticationRequiredError("Account temporarily locked (global)")
@@ -161,7 +163,6 @@ def check_lock(user_id: str, ip: str):
         logger.error("Redis error during lock check", exc_info=True)
         # Fail-close for security
         raise AuthenticationRequiredError("Unable to verify login attempts")
-
 
 def check_rate_limit(user_id: str, ip: str):
     """
