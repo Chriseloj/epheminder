@@ -3,16 +3,18 @@ from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 from infrastructure.storage import Base
 from core.security import Role
+import uuid
+from sqlalchemy.dialects.postgresql import UUID
 
 class UserDB(Base):
     __tablename__ = "users"
 
-    id = Column(String, primary_key=True)  # UUID
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)   # UUID
     username = Column(String(30), unique=True, nullable=False)
     password_hash = Column(String, nullable=False)
     role = Column(String(20), nullable=False)
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     reminders = relationship("ReminderDB", back_populates="owner")
 
@@ -27,8 +29,8 @@ class UserDB(Base):
 class ReminderDB(Base):
     __tablename__ = "reminders"
 
-    id = Column(String, primary_key=True)  # UUID
-    owner_id = Column(String, ForeignKey("users.id"), nullable=False)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)   # UUID
+    owner_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     text = Column(Text, nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True),
@@ -37,3 +39,16 @@ class ReminderDB(Base):
     expires_at = Column(DateTime(timezone=True), nullable=False)
 
     owner = relationship("UserDB", back_populates="reminders")
+
+class RefreshTokenDB(Base):
+    __tablename__ = "refresh_tokens"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4) # UUID
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+
+    token_hash = Column(String, unique=True, nullable=False)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    revoked = Column(Boolean, default=False)
+
+    created_at = Column(DateTime(timezone=True),
+                        default=lambda: datetime.now(timezone.utc))

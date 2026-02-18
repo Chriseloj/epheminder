@@ -3,14 +3,17 @@ from datetime import datetime, timedelta, timezone
 from core.exceptions import AuthenticationRequiredError
 import hashlib
 import os
+from dotenv import load_dotenv
 import logging
 
 logger = logging.getLogger(__name__)
 
 # 🔹 Redis Configuration
+
+load_dotenv(override=True)
 REDIS_URL = os.getenv("REDIS_URL")
 if not REDIS_URL:
-    raise RuntimeError("REDIS_URL environment variable is not set")
+    raise RuntimeError("REDIS_URL is not set in the environment")
 
 # 🔹 Security parameters
 MAX_ATTEMPTS = 5                 # Max login attempts per IP before lock
@@ -41,9 +44,9 @@ def get_redis_client() -> redis.Redis:
 def _get_redis():
     return get_redis_client()
 
-# Global Redis client
-r = _get_redis()
-
+def get_redis():
+    """Return a Redis client instance."""
+    return _get_redis()
 
 # --------------------------- Helper Functions ---------------------------
 
@@ -135,7 +138,7 @@ def check_lock(user_id: str, ip: str):
     try:
 
         # 🔹 IP-specific lock check
-        locked_until_raw = r.get(lock_key)
+        locked_until_raw = get_redis.get(lock_key)
         if locked_until_raw:
             locked_until = _parse_datetime_safe(locked_until_raw, lock_key, "locked_until")
             if locked_until and now < locked_until:
@@ -145,7 +148,7 @@ def check_lock(user_id: str, ip: str):
         global_key = _get_global_key(user_id)
         global_lock_key = f"{global_key}:lock"
 
-        global_locked_until_raw = r.get(global_lock_key)
+        global_locked_until_raw = get_redis.get(global_lock_key)
         global_locked_until = None
 
         if global_locked_until_raw:
@@ -187,7 +190,7 @@ def check_rate_limit(user_id: str, ip: str):
     now = datetime.now(timezone.utc)
 
     try:
-        last_attempt_raw = r.get(last_key)
+        last_attempt_raw = get_redis.get(last_key)
         if last_attempt_raw:
             last_attempt = _parse_datetime_safe(last_attempt_raw, last_key, "last_attempt")
             if last_attempt and (now - last_attempt).total_seconds() < RATE_LIMIT_SECONDS:
@@ -222,22 +225,22 @@ def apply_backoff(user_id: str, ip: str):
 
     try:
         # 🔹 Increment IP-specific attempts
-        attempt_count = r.incr(redis_key)
-        r.expire(redis_key, KEY_TTL_SECONDS)
+        attempt_count = get_redis.incr(redis_key)
+        get_redis.expire(redis_key, KEY_TTL_SECONDS)
 
         # 🔹 Record last attempt timestamp
-        r.set(f"{redis_key}:last", now.isoformat(), ex=KEY_TTL_SECONDS)
+        get_redis.set(f"{redis_key}:last", now.isoformat(), ex=KEY_TTL_SECONDS)
 
         # 🔹 Increment global attempts
-        global_attempts = r.incr(global_key)
-        r.expire(global_key, KEY_TTL_SECONDS)
+        global_attempts = get_redis.incr(global_key)
+        get_redis.expire(global_key, KEY_TTL_SECONDS)
 
         # 🔹 Apply exponential backoff lock per IP
         if attempt_count >= MAX_ATTEMPTS:
             exponent = attempt_count - MAX_ATTEMPTS
             lock_minutes = min(LOCK_MINUTES * (BACKOFF_MULTIPLIER ** exponent), MAX_LOCK_MINUTES)
             locked_until = now + timedelta(minutes=lock_minutes)
-            r.set(
+            get_redis.set(
                 f"{redis_key}:lock",
                 locked_until.isoformat(),
                 ex=KEY_TTL_SECONDS,
@@ -255,7 +258,7 @@ def apply_backoff(user_id: str, ip: str):
             global_lock_key = f"{global_key}:lock"
             locked_until = now + timedelta(minutes=MAX_LOCK_MINUTES)
 
-            r.set(
+            get_redis.set(
                 global_lock_key,
                 locked_until.isoformat(),
                 ex=KEY_TTL_SECONDS,
@@ -295,8 +298,8 @@ def reset_attempts(user_id: str, ip: str):
     global_key = _get_global_key(user_id)
 
     try:
-        r.delete(redis_key)
-        r.delete(f"{redis_key}:lock")
-        r.delete(f"{redis_key}:last")
+        get_redis.delete(redis_key)
+        get_redis.delete(f"{redis_key}:lock")
+        get_redis.delete(f"{redis_key}:last")
     except redis.RedisError:
         logger.error("Redis error during reset", exc_info=True)

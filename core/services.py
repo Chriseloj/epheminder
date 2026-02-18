@@ -90,7 +90,7 @@ class UserService:
         password_hash = hash_password(password)
 
         # Create UserDB
-        user_id = str(uuid.uuid4())
+        user_id = uuid.uuid4()
         user = UserDB(
             id=user_id,
             username=username,
@@ -108,30 +108,22 @@ class UserService:
         return user
         
     @staticmethod
-    def get_user_by_id(user_id: str, db_session=None) -> "UserDB":
-        """
-        Retrieve a user by their ID from the database.
-
-        - user_id: UUID string identifying the user
-        - db_session: SQLAlchemy Session instance
-
-        Returns:
-            UserDB object if found, otherwise None
-
-        Raises:
-            MissingDataError: if db_session is missing
-        """
+    def get_user_by_id(user_id, db_session=None):
 
         if db_session is None:
             raise MissingDataError()
 
-        # Repository
+        if isinstance(user_id, uuid.UUID):
+            user_uuid = user_id
+        else:
+            
+            try:
+                user_uuid = uuid.UUID(user_id)
+            except (ValueError, TypeError):
+                return None
+
         repo = UserRepository(db_session)
-
-        # Search Userr by ID
-        user = repo.get_by_id(user_id)
-
-        return user  
+        return repo.get_by_id(user_uuid)
     
     @staticmethod
     def get_user_by_username(username: str, db_session=None) -> "UserDB":
@@ -238,9 +230,10 @@ class ReminderService:
         now = datetime.now(timezone.utc)
         expires_at = now + timedelta(minutes=expires_in_minutes)
 
+        reminder_id = uuid.uuid4()  # sin str()
         reminder = ReminderDB(
             id=reminder_id,
-            owner_id=user.id,
+            owner_id=user.id,  # asegurarse de que user.id es UUID
             text=text,
             created_at=now,
             updated_at=now,
@@ -271,9 +264,11 @@ class ReminderService:
 
         # 1️⃣ Validate UUID format
         ReminderService._validate_uuid(reminder_id)
+        reminder_uuid = uuid.UUID(reminder_id)
+        reminder = reminder_repo.get_by_id(reminder_uuid)
 
         # 2️⃣ Fetch reminder from repository
-        reminder = reminder_repo.get_by_id(reminder_id)
+    
         if not reminder:
             return None
 
@@ -318,9 +313,11 @@ class ReminderService:
 
         # 1️⃣ Validate UUID format
         ReminderService._validate_uuid(reminder_id)
+        reminder_uuid = uuid.UUID(reminder_id)
+        reminder = reminder_repo.get_by_id(reminder_uuid)
 
         # 2️⃣ Fetch reminder from repository
-        reminder = reminder_repo.get_by_id(reminder_id)
+        
         if not reminder:
             return None
 
@@ -370,9 +367,11 @@ class ReminderService:
 
         # 1️⃣ Validate UUID format
         ReminderService._validate_uuid(reminder_id)
+        reminder_uuid = uuid.UUID(reminder_id)
+        reminder = reminder_repo.get_by_id(reminder_uuid)
 
         # 2️⃣ Fetch reminder from repository
-        reminder = reminder_repo.get_by_id(reminder_id)
+        
         if not reminder:
             return False
 
