@@ -1,5 +1,15 @@
 from enum import Enum, auto
 from core.exceptions import PermissionDeniedError, AuthenticationRequiredError
+import jwt
+import uuid
+import hashlib
+from datetime import datetime, timedelta, timezone
+from typing import Optional
+import logging
+from dotenv import load_dotenv
+import os
+
+logger = logging.getLogger(__name__)
 
 class Role(Enum):
     SUPERADMIN = auto()
@@ -44,6 +54,10 @@ def authorize(user, action: str, resource_owner_id=None):
     # 🔐 Enforce authentication (deny-by-default)
     if user is None:
         raise AuthenticationRequiredError()
+    
+    role = getattr(user, "role_enum", None)
+    if role is None:
+        raise AuthenticationRequiredError("Invalid")
 
     # Defensive check: ensure user has required attributes
     if not hasattr(user, "role") or not hasattr(user, "id"):
@@ -56,7 +70,82 @@ def authorize(user, action: str, resource_owner_id=None):
 
     # Check if the user's role has permission for the action
     if not has_permission(user.role_enum, action, own=own):
+
+        logger.warning(f"Permission denied | user_id={user.id}, action={action}")
         raise PermissionDeniedError(user.role_enum.name, action)
 
     # Authorization successful
     return True
+
+# ===============================
+# JWT CONFIGURATION
+# ===============================
+load_dotenv(override=True)
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError("SECRET_KEY is not set in the environment")
+
+ALGORITHM = "HS512"
+
+ACCESS_TOKEN_EXPIRE_MINUTES = 15
+REFRESH_TOKEN_EXPIRE_DAYS = 7
+
+# ===============================
+# TOKEN UTILITIES
+# ===============================
+
+def generate_jti() -> str:
+    return str(uuid.uuid4())
+
+
+def hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+# ===============================
+# TOKEN CREATION
+# ===============================
+
+def create_access_token(user) -> str:
+    expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+
+    payload = {
+        "sub": str(user.id),   # ✅ UUID to string
+        "role": user.role,
+        "type": "access",
+        "jti": generate_jti(),
+        "exp": expire
+    }
+
+    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def create_refresh_token(user) -> str:
+    expire = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+
+    payload = {
+        "sub": str(user.id),    # ✅ UUID to string
+        "type": "refresh",
+        "jti": generate_jti(),
+        "exp": expire
+    }
+
+    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+
+
+# ===============================
+# TOKEN VALIDATION
+# ===============================
+
+def decode_token(token: str) -> dict:
+    try:
+        return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    except jwt.ExpiredSignatureError:
+        raise AuthenticationRequiredError("Token expired")
+    except jwt.InvalidTokenError:
+        raise AuthenticationRequiredError("Invalid token")
+
+
+def verify_token_type(payload: dict, expected_type: str):
+    if payload.get("type") != expected_type:
+        raise AuthenticationRequiredError("Invalid token type")

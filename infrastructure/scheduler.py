@@ -3,6 +3,8 @@ import logging
 from infrastructure.storage import SessionLocal
 from infrastructure.repositories import ReminderRepository
 from core.services import ReminderService
+from core.models import RefreshTokenDB
+from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)  # INFO level to watch deleted reminders
@@ -59,3 +61,46 @@ class ReminderScheduler:
 
             # Wait for interval_seconds or until stop event is set
             self._stop_event.wait(self.interval_seconds)
+
+class TokenScheduler:
+
+    def __init__(self, interval_seconds: int = 3600):
+        self.interval_seconds = interval_seconds
+        self._stop_event = threading.Event()
+        self._thread = threading.Thread(target=self._run, daemon=True)
+
+    def start(self):
+        logger.info("TokenScheduler started.")
+        self._thread.start()
+
+    def stop(self):
+        logger.info("TokenScheduler stopping...")
+        self._stop_event.set()
+        self._thread.join()
+        logger.info("TokenScheduler stopped.")
+
+    def _run(self):
+        while not self._stop_event.is_set():
+            session = SessionLocal()
+            try:
+                deleted = session.query(RefreshTokenDB)\
+                    .filter(RefreshTokenDB.expires_at < datetime.now(timezone.utc))\
+                    .delete()
+                session.commit()
+
+                logger.info(f"Scheduler deleted {deleted} expired refresh tokens.")
+
+            except Exception:
+                logger.exception("TokenScheduler failed while cleaning tokens.")
+                
+            finally:
+                session.close()
+            
+            # wait for interval or stop
+            self._stop_event.wait(self.interval_seconds)
+
+    @staticmethod
+    def cleanup_expired_tokens(db_session):
+        now = datetime.now(timezone.utc)
+        db_session.query(RefreshTokenDB).filter(RefreshTokenDB.expires_at < now).delete()
+        db_session.commit()
