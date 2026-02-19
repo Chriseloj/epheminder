@@ -3,8 +3,8 @@ from core.security import (decode_token,
 verify_token_type,)
 from core.exceptions import AuthenticationRequiredError
 from core.security import decode_token
-from core.protection import get_redis ,KEY_TTL_SECONDS
-from datetime import datetime, timezone, timedelta
+from core.protection import get_redis
+from datetime import datetime, timezone
 import logging
 from uuid import UUID
 
