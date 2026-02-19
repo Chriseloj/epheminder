@@ -128,10 +128,10 @@ def admin(db_session, user_repo):
 
 @pytest.fixture
 def reminders(user, reminder_repo):
-    reminders = []
+    reminders_list = []
     for i in range(3):
         reminder = ReminderDB(
-            id=uuid.UUID(int=i+1),
+            id=uuid.uuid4(),
             owner_id=user.id,
             text=f"Reminder {i+1}",
             created_at=datetime.now(timezone.utc),
@@ -139,9 +139,8 @@ def reminders(user, reminder_repo):
             expires_at=datetime.now(timezone.utc) + timedelta(hours=1)
         )
         reminder_repo.add(reminder)
-        reminders.append(reminder)
-    return reminders
-
+        reminders_list.append(reminder)
+    return reminders_list
 # -----------------------------
 # DISABLE RATE LIMIT FOR TESTS
 # -----------------------------
