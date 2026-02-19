@@ -117,6 +117,7 @@ def check_lock(user_id: str, ip: str):
     including both IP-specific and global locks.
 
     Implements fail-closed behavior: if Redis cannot be reached, login is blocked.
+    Uses a Redis client obtained via get_redis().
 
     Args:
         user_id (str): The unique identifier of the user.
@@ -173,6 +174,8 @@ def check_rate_limit(user_id: str, ip: str):
     Enforces a minimum interval between login attempts from the same IP.
     Prevents rapid retries (rate limiting).
 
+    Uses a Redis client obtained via get_redis().
+
     Args:
         user_id (str): The unique identifier of the user.
         ip (str): The IP address of the client.
@@ -206,6 +209,8 @@ def check_rate_limit(user_id: str, ip: str):
 def apply_backoff(user_id: str, ip: str):
     """
     Increments failed login attempt counters and applies locks with exponential backoff.
+
+    Uses a Redis client obtained via get_redis().
 
     - IP-specific lock: triggers after MAX_ATTEMPTS from same IP.
     - Global lock: triggers after GLOBAL_MAX_ATTEMPTS across all IPs.
@@ -284,6 +289,8 @@ def apply_backoff(user_id: str, ip: str):
 def reset_attempts(user_id: str, ip: str):
     """
     Resets the failed login attempts and locks for a specific user/IP combination.
+
+    Uses a Redis client obtained via get_redis().
 
     The global attempt counter is deliberately preserved to prevent bypassing
     security with distributed attacks.
