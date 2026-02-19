@@ -4,7 +4,6 @@ import jwt
 import uuid
 import hashlib
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 import logging
 from dotenv import load_dotenv
 import os
