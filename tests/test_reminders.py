@@ -1,22 +1,20 @@
 import pytest
 import random
 import string
+import uuid
 from datetime import datetime, timedelta, timezone
+from unittest.mock import MagicMock
+
 from core.services import ReminderService, UserService
 from core.models import ReminderDB
 from core.exceptions import (
     MissingDataError,
     ReminderTextTooLongError,
     InvalidExpirationError,
-    InvalidUUIDError
+    InvalidUUIDError,
+    MaxRemindersReachedError
 )
-
-from unittest.mock import MagicMock
-from core.exceptions import MaxRemindersReachedError
-from core.utils import MAX_REMINDERS_PER_USER
-
-MAX_TEXT_LENGTH = 100  # core/utils.py
-VALID_PASSWORD = "Password123!@#01"  # ≥15 characters
+from core.utils import MAX_REMINDERS_PER_USER, MAX_TEXT_LENGTH, MAX_EXPIRATION_MINUTES
 
 # ---------------------------
 # Fixtures
@@ -27,9 +25,8 @@ def user(db_session):
     username = "".join(random.choices(string.ascii_letters + string.digits, k=12))
     user = UserService.create_user(
         username=username,
-        password=VALID_PASSWORD,
+        password="Password123!@#01",
         db_session=db_session,
-        
     )
     return user
 
@@ -47,7 +44,7 @@ def test_create_reminder_success(user, reminder_repo):
     reminder = ReminderService.create_reminder(
         user, text, 1, "days", reminder_repo
     )
-    assert reminder.id is not None
+    assert isinstance(reminder.id, uuid.UUID)
     assert reminder.text == text
     assert reminder.owner_id == user.id
 
@@ -72,8 +69,8 @@ def test_create_reminder_missing_repo(user):
 
 def test_read_reminder_success(user, reminder_repo):
     reminder = ReminderService.create_reminder(user, "Read me", 1, "days", reminder_repo)
-    read = ReminderService.read_reminder(user, reminder.id, reminder_repo)
-    assert read.id == reminder.id
+    fetched = ReminderService.read_reminder(user, str(reminder.id), reminder_repo)
+    assert fetched.id == reminder.id
 
 def test_read_reminder_invalid_uuid(user, reminder_repo):
     with pytest.raises(InvalidUUIDError):
@@ -85,15 +82,13 @@ def test_read_reminder_invalid_uuid(user, reminder_repo):
 
 def test_update_reminder_success(user, reminder_repo):
     reminder = ReminderService.create_reminder(user, "Old text", 1, "days", reminder_repo)
-    updated = ReminderService.update_reminder(
-        user, reminder.id, "New text", reminder_repo
-    )
+    updated = ReminderService.update_reminder(user, str(reminder.id), "New text", reminder_repo)
     assert updated.text == "New text"
 
 def test_update_reminder_text_too_long(user, reminder_repo):
     reminder = ReminderService.create_reminder(user, "Old text", 1, "days", reminder_repo)
     with pytest.raises(ReminderTextTooLongError):
-        ReminderService.update_reminder(user, reminder.id, "A"*(MAX_TEXT_LENGTH+1), reminder_repo)
+        ReminderService.update_reminder(user, str(reminder.id), "A"*(MAX_TEXT_LENGTH+1), reminder_repo)
 
 # ---------------------------
 # Test delete
@@ -101,11 +96,11 @@ def test_update_reminder_text_too_long(user, reminder_repo):
 
 def test_delete_reminder_success(user, reminder_repo):
     reminder = ReminderService.create_reminder(user, "To delete", 1, "days", reminder_repo)
-    result = ReminderService.delete_reminder(user, reminder.id, reminder_repo)
+    result = ReminderService.delete_reminder(user, str(reminder.id), reminder_repo)
     assert result is True
 
 def test_delete_reminder_not_found(user, reminder_repo):
-    result = ReminderService.delete_reminder(user, "00000000-0000-0000-0000-000000000000", reminder_repo)
+    result = ReminderService.delete_reminder(user, str(uuid.uuid4()), reminder_repo)
     assert result is False
 
 # ---------------------------
@@ -121,7 +116,7 @@ def test_list_reminders(user, reminder_repo):
 
 def test_auto_delete_expired_reminders(user, reminder_repo):
     reminder = ReminderDB(
-        id="expired-uuid",
+        id=uuid.uuid4(),
         owner_id=user.id,
         text="Expired",
         created_at=datetime.now(timezone.utc) - timedelta(days=2),
@@ -134,21 +129,23 @@ def test_auto_delete_expired_reminders(user, reminder_repo):
     assert reminder.id not in [r.id for r in all_reminders]
 
 # ---------------------------
-# Test max reminder per user
+# Test max reminders per user
 # ---------------------------
 
 def test_max_reminders_per_user(monkeypatch):
     user = MagicMock()
-    user.id = "user-123"
-    
+    user.id = uuid.uuid4()  # UUID, not string
+
     mock_repo = MagicMock()
     mock_repo.list_by_user.return_value = [MagicMock()] * MAX_REMINDERS_PER_USER
 
-    monkeypatch.setattr(ReminderService, "list_reminders", lambda u, reminder_repo=None: mock_repo.list_by_user(u.id))
+    monkeypatch.setattr(
+        ReminderService,
+        "list_reminders",
+        lambda u, reminder_repo=None: mock_repo.list_by_user(u.id)
+    )
 
     with pytest.raises(MaxRemindersReachedError) as exc_info:
-        ReminderService.create_reminder(
-            user, text="Test", amount=1, unit="days", reminder_repo=mock_repo
-        )
+        ReminderService.create_reminder(user, "Test", 1, "days", reminder_repo=mock_repo)
 
     assert str(MAX_REMINDERS_PER_USER) in str(exc_info.value)

@@ -1,13 +1,10 @@
 import logging
 import uuid
 from core.services import rate_limited
-from core.exceptions import MissingDataError, InvalidUserError
-from core.services import UserService 
+from core.exceptions import MissingDataError
 import hashlib
 from core.security import (
     create_access_token,
-    create_refresh_token,
-    hash_token
 )
 from core.models import RefreshTokenDB
 from datetime import datetime, timedelta, timezone
@@ -44,7 +41,7 @@ class AuthenticationService:
 
         refresh_token_db = RefreshTokenDB(
             id=uuid.uuid4(),  # UUID real
-            user_id=user.id,  # UUID del user
+            user_id=user.id,  # UUID  user
             token_hash=token_hash,
             expires_at=expire,
             revoked=False,
@@ -57,6 +54,6 @@ class AuthenticationService:
         # 3️⃣ Return both tokens
         return {
             "access_token": access_token,
-            "refresh_token": token_value,  # devolvemos el token plano
+            "refresh_token": token_value,  # return token 
             "token_type": "bearer"
         }

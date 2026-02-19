@@ -117,6 +117,7 @@ def check_lock(user_id: str, ip: str):
     including both IP-specific and global locks.
 
     Implements fail-closed behavior: if Redis cannot be reached, login is blocked.
+    Uses a Redis client obtained via get_redis().
 
     Args:
         user_id (str): The unique identifier of the user.
@@ -127,9 +128,10 @@ def check_lock(user_id: str, ip: str):
         AuthenticationRequiredError: If the account is temporarily locked (IP-specific or global),
             or if Redis verification fails.
     """
-
     if not user_id or not ip:
         raise ValueError("user_id and ip are required")
+
+    redis_client = get_redis()
 
     redis_key = _get_key(user_id, ip)
     lock_key = f"{redis_key}:lock"
@@ -138,7 +140,7 @@ def check_lock(user_id: str, ip: str):
     try:
 
         # 🔹 IP-specific lock check
-        locked_until_raw = get_redis.get(lock_key)
+        locked_until_raw = redis_client.get(lock_key)
         if locked_until_raw:
             locked_until = _parse_datetime_safe(locked_until_raw, lock_key, "locked_until")
             if locked_until and now < locked_until:
@@ -148,7 +150,7 @@ def check_lock(user_id: str, ip: str):
         global_key = _get_global_key(user_id)
         global_lock_key = f"{global_key}:lock"
 
-        global_locked_until_raw = get_redis.get(global_lock_key)
+        global_locked_until_raw = redis_client.get(global_lock_key)
         global_locked_until = None
 
         if global_locked_until_raw:
@@ -172,6 +174,8 @@ def check_rate_limit(user_id: str, ip: str):
     Enforces a minimum interval between login attempts from the same IP.
     Prevents rapid retries (rate limiting).
 
+    Uses a Redis client obtained via get_redis().
+
     Args:
         user_id (str): The unique identifier of the user.
         ip (str): The IP address of the client.
@@ -185,12 +189,14 @@ def check_rate_limit(user_id: str, ip: str):
     if not user_id or not ip:
         raise ValueError("user_id and ip are required")
     
+    redis_client = get_redis()
+    
     redis_key = _get_key(user_id, ip)
     last_key = f"{redis_key}:last"
     now = datetime.now(timezone.utc)
 
     try:
-        last_attempt_raw = get_redis.get(last_key)
+        last_attempt_raw = redis_client.get(last_key)
         if last_attempt_raw:
             last_attempt = _parse_datetime_safe(last_attempt_raw, last_key, "last_attempt")
             if last_attempt and (now - last_attempt).total_seconds() < RATE_LIMIT_SECONDS:
@@ -203,6 +209,8 @@ def check_rate_limit(user_id: str, ip: str):
 def apply_backoff(user_id: str, ip: str):
     """
     Increments failed login attempt counters and applies locks with exponential backoff.
+
+    Uses a Redis client obtained via get_redis().
 
     - IP-specific lock: triggers after MAX_ATTEMPTS from same IP.
     - Global lock: triggers after GLOBAL_MAX_ATTEMPTS across all IPs.
@@ -219,28 +227,30 @@ def apply_backoff(user_id: str, ip: str):
     if not user_id or not ip:
         raise ValueError("user_id and ip are required")
     
+    redis_client = get_redis()
+    
     redis_key = _get_key(user_id, ip)
     global_key = _get_global_key(user_id)
     now = datetime.now(timezone.utc)
 
     try:
         # 🔹 Increment IP-specific attempts
-        attempt_count = get_redis.incr(redis_key)
-        get_redis.expire(redis_key, KEY_TTL_SECONDS)
+        attempt_count = redis_client.incr(redis_key)
+        redis_client.expire(redis_key, KEY_TTL_SECONDS)
 
         # 🔹 Record last attempt timestamp
-        get_redis.set(f"{redis_key}:last", now.isoformat(), ex=KEY_TTL_SECONDS)
+        redis_client.set(f"{redis_key}:last", now.isoformat(), ex=KEY_TTL_SECONDS)
 
         # 🔹 Increment global attempts
-        global_attempts = get_redis.incr(global_key)
-        get_redis.expire(global_key, KEY_TTL_SECONDS)
+        global_attempts = redis_client.incr(global_key)
+        redis_client.expire(global_key, KEY_TTL_SECONDS)
 
         # 🔹 Apply exponential backoff lock per IP
         if attempt_count >= MAX_ATTEMPTS:
             exponent = attempt_count - MAX_ATTEMPTS
             lock_minutes = min(LOCK_MINUTES * (BACKOFF_MULTIPLIER ** exponent), MAX_LOCK_MINUTES)
             locked_until = now + timedelta(minutes=lock_minutes)
-            get_redis.set(
+            redis_client.set(
                 f"{redis_key}:lock",
                 locked_until.isoformat(),
                 ex=KEY_TTL_SECONDS,
@@ -258,7 +268,7 @@ def apply_backoff(user_id: str, ip: str):
             global_lock_key = f"{global_key}:lock"
             locked_until = now + timedelta(minutes=MAX_LOCK_MINUTES)
 
-            get_redis.set(
+            redis_client.set(
                 global_lock_key,
                 locked_until.isoformat(),
                 ex=KEY_TTL_SECONDS,
@@ -280,6 +290,8 @@ def reset_attempts(user_id: str, ip: str):
     """
     Resets the failed login attempts and locks for a specific user/IP combination.
 
+    Uses a Redis client obtained via get_redis().
+
     The global attempt counter is deliberately preserved to prevent bypassing
     security with distributed attacks.
 
@@ -291,6 +303,8 @@ def reset_attempts(user_id: str, ip: str):
         ValueError: If user_id or ip are missing.
     """
 
+    redis_client = get_redis()
+
     if not user_id or not ip:
         raise ValueError("user_id and ip are required")
     
@@ -298,8 +312,8 @@ def reset_attempts(user_id: str, ip: str):
     global_key = _get_global_key(user_id)
 
     try:
-        get_redis.delete(redis_key)
-        get_redis.delete(f"{redis_key}:lock")
-        get_redis.delete(f"{redis_key}:last")
+        redis_client.delete(redis_key)
+        redis_client.delete(f"{redis_key}:lock")
+        redis_client.delete(f"{redis_key}:last")
     except redis.RedisError:
         logger.error("Redis error during reset", exc_info=True)

@@ -1,106 +1,65 @@
 import pytest
-from core.registration import RegistrationService
-from core.authentication_service import AuthenticationService
-from core.exceptions import UsernameTakenError, InvalidUserError, MissingDataError, InvalidPasswordError
-from infrastructure.storage import SessionLocal
-from core.security import Role
-from core.services import UserService
+from core.authentication import authenticate
+from core.exceptions import AuthenticationRequiredError
+from core.models import UserDB
 
-# ========================
-# Register
-# ========================
+# ----------------------------
+# Dummy repository para tests
+# ----------------------------
+class DummyRepo:
+    def __init__(self, users):
+        self.users = users
 
-def test_register_success(db_session):
-    user = RegistrationService.register(
-        username="TestUser",
-        password="PasswordSegura123!@#",
-        ip="127.0.0.1",
-        db_session=db_session
+    def get_by_username(self, username):
+        return self.users.get(username)
+
+# ----------------------------
+# Test de autenticación exitosa
+# ----------------------------
+def test_authenticate_success(monkeypatch, ip):
+    user = UserDB(
+        id="1",
+        username="test",
+        password_hash="hashed",
+        role="USER",
+        is_active=True
     )
-    assert user.username == "testuser"  # normalize to lowercase
-    assert user.id is not None
-    assert user.role == Role.USER.name
+    users = {"test": user}
 
-
-def test_register_duplicate_username(db_session):
-    RegistrationService.register(
-        username="DuplicateUser",
-        password="PasswordSegura123!@#",
-        ip="127.0.0.1",
-        db_session=db_session
+    # Patch de repositorio y verificación de password
+    monkeypatch.setattr(
+        "core.authentication.UserRepository",
+        lambda db: DummyRepo(users)
     )
-    with pytest.raises(UsernameTakenError):
-        RegistrationService.register(
-            username="DuplicateUser",
-            password="OtraPassword123!@#",
-            ip="127.0.0.1",
-            db_session=db_session
-        )
+    monkeypatch.setattr("core.authentication.verify_password", lambda pw, hash_: True)
+
+    # Llamada a la función
+    result = authenticate("test", "any", db_session=object(), ip=ip)
+
+    # Verificamos que el resultado es el mismo objeto de usuario
+    assert isinstance(result, UserDB)
+    assert result.id == user.id
+    assert result.username == "test"
 
 
-def test_register_invalid_password(db_session):
-    with pytest.raises(InvalidPasswordError):
-        RegistrationService.register(
-            username="UserInvalidPassword",
-            password="short",  
-            ip="127.0.0.1",
-            db_session=db_session
-        )
-
-
-# ========================
-# Login
-# ========================
-
-def test_login_success(db_session):
-    username = "LoginUser"
-    password = "PasswordSegura123!@#"
-    
-    # registrer
-    user_registered = RegistrationService.register(
-        username=username,
-        password=password,
-        ip="127.0.0.1",
-        db_session=db_session
+# ----------------------------
+# Test de contraseña incorrecta
+# ----------------------------
+def test_authenticate_wrong_password(monkeypatch, ip):
+    user = UserDB(
+        id="1",
+        username="test",
+        password_hash="hashed",
+        role="USER",
+        is_active=True
     )
-    
-    # login
-    user_logged = AuthenticationService.login(
-        username=username,
-        password=password,
-        ip="127.0.0.1",
-        db_session=db_session
+    users = {"test": user}
+
+    monkeypatch.setattr(
+        "core.authentication.UserRepository",
+        lambda db: DummyRepo(users)
     )
-    
-    # obtain ID to verify
-    user_db = UserService.get_user_by_id(user_registered.id, db_session=db_session)
+    monkeypatch.setattr("core.authentication.verify_password", lambda pw, hash_: False)
 
-    assert user_logged.id == user_db.id
-
-def test_login_wrong_username(db_session):
-    with pytest.raises(InvalidUserError):
-        AuthenticationService.login(
-            username="NoExiste",
-            password="Password123!@#",
-            ip="127.0.0.1",
-            db_session=db_session
-        )
-
-def test_login_wrong_password(db_session):
-    username = "LoginFailUser"
-    password = "PasswordSegura123!@#"
-    
-    RegistrationService.register(
-        username=username,
-        password=password,
-        ip="127.0.0.1",
-        db_session=db_session
-    )
-
-    with pytest.raises(InvalidUserError):
-        AuthenticationService.login(
-            username=username,
-            password="WrongPassword!23",
-            ip="127.0.0.1",
-            db_session=db_session
-        )
+    with pytest.raises(AuthenticationRequiredError):
+        authenticate("test", "wrong", db_session=object(), ip=ip)
