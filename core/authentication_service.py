@@ -9,14 +9,9 @@ from core.security import (
 from core.models import RefreshTokenDB
 from datetime import datetime, timedelta, timezone
 from core.authentication import authenticate
+from core.registration import hash_sensitive
 
 logger = logging.getLogger(__name__)
-
-def hash_sensitive(data) -> str:
-   
-    if isinstance(data, uuid.UUID):
-        data = str(data)
-    return hashlib.sha256(data.encode()).hexdigest()
 
 class AuthenticationService:
 
@@ -29,7 +24,7 @@ class AuthenticationService:
         username = username.strip().lower()
         user = authenticate(username, password, db_session=db_session, ip=ip)
 
-        logger.info(f"Successful login | user_hash={hash_sensitive(user.id)} | ip={ip}")
+        logger.info(f"Successful login | user_hash={hash_sensitive(user.id)} | ip={hash_sensitive(ip)}")
 
         # 1️⃣ JWT access token
         access_token = create_access_token(user)
