@@ -5,10 +5,20 @@ from core.models import UserDB
 from core.exceptions import MissingDataError
 from core.services import UserService
 import hashlib
+import uuid
 
 logger = logging.getLogger(__name__)
 
-def hash_sensitive(data: str) -> str:
+def hash_sensitive(data) -> str:
+    """
+    Hash a sensitive value (UUID, str, etc.) using SHA256.
+    Accepts str or UUID and returns hex digest.
+    """
+    if isinstance(data, uuid.UUID):
+        data = str(data)
+    elif not isinstance(data, str):
+        data = str(data)  
+    
     return hashlib.sha256(data.encode()).hexdigest()
 
 
