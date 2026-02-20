@@ -1,14 +1,13 @@
 import re
 import bcrypt
 from core.exceptions import InvalidPasswordError
-
 # 🔐 Password rules
-MIN_LENGTH = 15
-MIN_UPPER = 1
-MIN_LOWER = 1
-MIN_DIGITS = 1
-MIN_SYMBOLS = 1
-SYMBOLS = r"!@#$%^&*()\-_=+\[\]{};:'\",.<>/?"
+from config import (MIN_LENGTH,
+MIN_UPPER,
+MIN_LOWER,
+MIN_DIGITS,
+MIN_SYMBOLS,
+SYMBOLS)
 
 def validate_password(password: str) -> None:
     """

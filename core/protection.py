@@ -2,27 +2,26 @@ import redis
 from datetime import datetime, timedelta, timezone
 from core.exceptions import AuthenticationRequiredError
 import hashlib
-import os
 from dotenv import load_dotenv
 import logging
+from config import (REDIS_URL,
+MAX_ATTEMPTS,
+RATE_LIMIT_SECONDS,
+LOCK_MINUTES,
+MAX_LOCK_MINUTES,
+BACKOFF_MULTIPLIER,
+KEY_TTL_SECONDS,
+GLOBAL_MAX_ATTEMPTS)
 
 logger = logging.getLogger(__name__)
 
 # 🔹 Redis Configuration
 
 load_dotenv(override=True)
-REDIS_URL = os.getenv("REDIS_URL")
+REDIS_URL
 if not REDIS_URL:
     raise RuntimeError("REDIS_URL is not set in the environment")
 
-# 🔹 Security parameters
-MAX_ATTEMPTS = 5                 # Max login attempts per IP before lock
-RATE_LIMIT_SECONDS = 60          # Min seconds between attempts (rate limiting)
-LOCK_MINUTES = 15                # Base lock duration in minutes
-MAX_LOCK_MINUTES = 24 * 60       # Max lock duration in minutes
-BACKOFF_MULTIPLIER = 2           # Exponential backoff multiplier
-KEY_TTL_SECONDS = 24 * 60 * 60   # Redis key TTL (24h)
-GLOBAL_MAX_ATTEMPTS = MAX_ATTEMPTS * 3  # Global attempts limit across IPs
 
 def get_redis_client() -> redis.Redis:
     """

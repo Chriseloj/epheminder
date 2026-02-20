@@ -14,7 +14,7 @@ from core.exceptions import (
     InvalidUUIDError,
     MaxRemindersReachedError
 )
-from core.utils import MAX_REMINDERS_PER_USER, MAX_TEXT_LENGTH, MAX_EXPIRATION_MINUTES
+from config import MAX_REMINDERS_PER_USER, MAX_TEXT_LENGTH, MAX_EXPIRATION_MINUTES
 
 # ---------------------------
 # Fixtures
@@ -34,6 +34,30 @@ def user(db_session):
 def reminder_repo(db_session):
     from infrastructure.repositories import ReminderRepository
     return ReminderRepository(db_session)
+
+# ---------------------------
+# Test list
+# ---------------------------
+
+
+def test_list_reminders_returns_only_active():
+    # Arrange
+    user_id = "user-123"
+    mock_repo = MagicMock()
+    
+    now = datetime.now(timezone.utc)
+    reminders = [
+        MagicMock(expires_at=now + timedelta(minutes=10)),  # active
+        MagicMock(expires_at=now - timedelta(minutes=10)),  # expired
+    ]
+    mock_repo.list_by_user.return_value = reminders
+
+    # Act
+    active = ReminderService.list_reminders(user=MagicMock(id=user_id), reminder_repo=mock_repo)
+
+    # Assert
+    assert len(active) == 1
+    assert active[0].expires_at > now
 
 # ---------------------------
 # Test creation
@@ -127,6 +151,19 @@ def test_auto_delete_expired_reminders(user, reminder_repo):
     ReminderService.auto_delete_expired_reminders(reminder_repo)
     all_reminders = reminder_repo.list_by_user(user.id)
     assert reminder.id not in [r.id for r in all_reminders]
+
+def test_auto_delete_expired_reminders_calls_repo(monkeypatch):
+    # Arrange
+    mock_repo = MagicMock()
+    expired_list = [MagicMock(), MagicMock()]
+    mock_repo.delete_expired.return_value = expired_list
+
+    # Act
+    result = ReminderService.auto_delete_expired_reminders(reminder_repo=mock_repo)
+
+    # Assert
+    mock_repo.delete_expired.assert_called_once()
+    assert result == expired_list
 
 # ---------------------------
 # Test max reminders per user

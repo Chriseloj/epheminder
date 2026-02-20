@@ -4,7 +4,7 @@ from core.exceptions import AuthenticationRequiredError
 from core.models import UserDB
 
 # ----------------------------
-# Dummy repository para tests
+# Dummy repository tests
 # ----------------------------
 class DummyRepo:
     def __init__(self, users):
@@ -14,7 +14,7 @@ class DummyRepo:
         return self.users.get(username)
 
 # ----------------------------
-# Test de autenticación exitosa
+# Test authentication successful
 # ----------------------------
 def test_authenticate_success(monkeypatch, ip):
     user = UserDB(
@@ -26,24 +26,24 @@ def test_authenticate_success(monkeypatch, ip):
     )
     users = {"test": user}
 
-    # Patch de repositorio y verificación de password
+    # Patch repository and verify password
     monkeypatch.setattr(
         "core.authentication.UserRepository",
         lambda db: DummyRepo(users)
     )
     monkeypatch.setattr("core.authentication.verify_password", lambda pw, hash_: True)
 
-    # Llamada a la función
+    # Called function
     result = authenticate("test", "any", db_session=object(), ip=ip)
 
-    # Verificamos que el resultado es el mismo objeto de usuario
+    # Verify result is the same objet of user
     assert isinstance(result, UserDB)
     assert result.id == user.id
     assert result.username == "test"
 
 
 # ----------------------------
-# Test de contraseña incorrecta
+# Test wrong password
 # ----------------------------
 def test_authenticate_wrong_password(monkeypatch, ip):
     user = UserDB(

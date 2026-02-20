@@ -21,7 +21,7 @@ def test_register_success(db_session, ip):
         db_session=db_session
     )
 
-    # ✅ Aseguramos que el ID sea uuid.UUID
+    # ✅ ID must be uuid.UUID
     assert isinstance(user_registered.id, uuid.UUID)
     assert user_registered.username.lower() == username.lower()
     assert user_registered.role == Role.USER.name
@@ -48,7 +48,7 @@ def test_register_invalid_password(db_session, ip):
     with pytest.raises(InvalidPasswordError):
         RegistrationService.register(
             username="UserInvalidPassword",
-            password="short",  # contraseña demasiado corta
+            password="short",  # password too short
             ip=ip,
             db_session=db_session
         )
@@ -61,9 +61,9 @@ def test_register_invalid_password(db_session, ip):
 @pytest.fixture(autouse=True)
 def mock_auth_services():
     """
-    Parchea todos los servicios de auth externos:
-    - authenticate -> devuelve usuario simulado
-    - JWT y hashing -> devuelven strings dummy
+    auth:
+    - authenticate -> return simulate usuers
+    - JWT y hashing -> return strings dummy
     - rate_limited -> no-op
     """
     with patch("core.authentication.authenticate") as mock_auth, \
@@ -72,7 +72,7 @@ def mock_auth_services():
          patch("core.security.hash_token", return_value="hashed_dummy"), \
          patch("core.authentication_service.rate_limited", lambda *a, **k: (lambda f: f)):
 
-        # Usuario simulado para login
+        # User simulate for login
         mock_user = type("User", (object,), {"id": uuid.uuid4(), "username": "LoginUser"})()
         mock_auth.return_value = mock_user
         yield
@@ -82,7 +82,7 @@ def test_login_success(db_session, ip):
     username = "LoginUser"
     password = "PasswordSegura123!@#"
 
-    # Registrar usuario (opcional, db_session no es crítico aquí porque authenticate está parcheado)
+    # Register usuer (opcional, db_session not critic authenticate patch)
     user_registered = RegistrationService.register(
         username=username,
         password=password,
@@ -103,7 +103,7 @@ def test_login_success(db_session, ip):
 
 
 def test_login_wrong_username(db_session, ip):
-    # Patch authenticate para lanzar excepción cuando usuario no existe
+    # Patch authenticate exception when usuer not exist
     with patch("core.authentication.authenticate", side_effect=AuthenticationRequiredError):
         with pytest.raises(AuthenticationRequiredError):
             AuthenticationService.login(
@@ -118,7 +118,7 @@ def test_login_wrong_password(db_session, ip):
     username = "LoginFailUser"
     password = "PasswordSegura123!@#"
 
-    # Registrar usuario
+    # Register user
     RegistrationService.register(
         username=username,
         password=password,
@@ -126,7 +126,7 @@ def test_login_wrong_password(db_session, ip):
         db_session=db_session
     )
 
-    # Patch authenticate para simular password incorrecta
+    # Patch authenticate to simulate  incorrect password
     with patch("core.authentication.authenticate", side_effect=AuthenticationRequiredError):
         with pytest.raises(AuthenticationRequiredError):
             AuthenticationService.login(
