@@ -9,14 +9,14 @@ IP = "127.0.0.1"
 # ------------------ check_lock ------------------
 def test_check_lock_raises_when_locked(mock_redis_client):
     lock_key = protection._get_key(USER_ID, IP) + ":lock"
-    # Simular que Redis devuelve un lock activo
+    # Simulate Redis return one active lock 
     mock_redis_client.get.side_effect = lambda k: (datetime.now(timezone.utc) + timedelta(minutes=5)).isoformat() if k == lock_key else None
     with pytest.raises(AuthenticationRequiredError):
         protection.check_lock(USER_ID, IP)
 
 def test_check_lock_global_locked(mock_redis_client):
     global_lock_key = protection._get_global_key(USER_ID) + ":lock"
-    # IP no bloqueada, pero global sí
+    # IP not blocked, but global 
     def side_effect(k):
         if k == f"{protection._get_key(USER_ID, IP)}:lock":
             return None
@@ -29,12 +29,12 @@ def test_check_lock_global_locked(mock_redis_client):
 
 def test_check_lock_passes_when_no_lock(mock_redis_client):
     mock_redis_client.get.side_effect = lambda k: None
-    protection.check_lock(USER_ID, IP)  # No error = pass
+    protection.check_lock(USER_ID, IP)  # Not error = pass
 
 # ------------------ check_rate_limit ------------------
 def test_check_rate_limit_raises(mock_redis_client):
     last_key = f"{protection._get_key(USER_ID, IP)}:last"
-    # Último intento reciente, debe bloquear
+    # last attempt recently, must block
     mock_redis_client.get.side_effect = lambda k: (datetime.now(timezone.utc) - timedelta(seconds=30)).isoformat() if k == last_key else None
     with pytest.raises(AuthenticationRequiredError):
         protection.check_rate_limit(USER_ID, IP)
@@ -42,7 +42,7 @@ def test_check_rate_limit_raises(mock_redis_client):
 def test_check_rate_limit_passes(mock_redis_client):
     last_key = f"{protection._get_key(USER_ID, IP)}:last"
     mock_redis_client.get.side_effect = lambda k: (datetime.now(timezone.utc) - timedelta(seconds=protection.RATE_LIMIT_SECONDS + 1)).isoformat() if k == last_key else None
-    protection.check_rate_limit(USER_ID, IP)  # No error = pass
+    protection.check_rate_limit(USER_ID, IP)  # Not error = pass
 
 # ------------------ apply_backoff ------------------
 def test_apply_backoff_sets_ip_and_global_lock(mock_redis_client):

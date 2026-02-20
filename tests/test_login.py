@@ -14,7 +14,7 @@ def test_login_success(db_session):
     # Act
     tokens = AuthenticationService.login(
         username="testuser",
-        password=password,  # ← misma contraseña
+        password=password, 
         ip="127.0.0.1",
         db_session=db_session
     )

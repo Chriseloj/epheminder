@@ -9,6 +9,7 @@ register_user,
 list_reminders,
 delete_reminder,
 login_user,)
+from core.exceptions import AuthenticationRequiredError
 
 # ------------------------------
 # Fixtures
@@ -67,8 +68,8 @@ def test_require_login_blocks_without_token():
         nonlocal called
         called = True
 
-    wrapped = require_login(dummy)  # envuelve dummy con el decorador
-    wrapped()  # llama a la función decorada
+    wrapped = require_login(dummy)  
+    wrapped() 
 
     assert not called
 
@@ -80,7 +81,7 @@ def test_require_login_blocks_without_token():
 @patch('core.services.ReminderService.create_reminder')
 def test_create_reminder_success(mock_create, mock_input, mock_decode):
     import core.cli as cli_module
-    # Asignar sesión activa
+    # Active session
     cli_module.current_user = mock_user()
     cli_module.current_token = 'token'
 
@@ -137,3 +138,135 @@ def test_logout_clears_session():
 
     assert cli_module.current_user is None
     assert cli_module.current_token is None
+
+# ------------------------------
+# Test invalid token
+# ------------------------------
+@patch("core.cli.decode_token", side_effect=Exception("invalid"))
+def test_require_login_invalid_token(mock_decode, capsys):
+    import core.cli as cli
+
+    cli.current_token = "bad-token"
+
+    @cli.require_login
+    def dummy():
+        pass
+
+    dummy()
+
+    captured = capsys.readouterr()
+    assert "Invalid session" in captured.out
+    assert cli.current_token is None
+
+# ------------------------------
+# Test expired token
+# ------------------------------
+@patch("core.cli.decode_token", side_effect=AuthenticationRequiredError())
+def test_require_login_expired_token(mock_decode, capsys):
+    import core.cli as cli
+
+    cli.current_token = "expired"
+
+    @cli.require_login
+    def dummy():
+        pass
+
+    dummy()
+
+    captured = capsys.readouterr()
+    assert "Session expired" in captured.out
+
+# ------------------------------
+# Test already logged
+# ------------------------------
+
+def test_login_user_already_logged(capsys):
+    import core.cli as cli
+
+    cli.current_token = "token"
+
+    login_user()
+
+    captured = capsys.readouterr()
+    assert "Already logged in" in captured.out
+
+# ------------------------------
+# Test invalid expiration
+# ------------------------------
+
+@patch("core.cli.decode_token", return_value={"sub": "user-id"})
+@patch("core.cli.safe_input", side_effect=["text", "abc"])
+def test_create_reminder_invalid_number(mock_input, mock_decode, capsys):
+    import core.cli as cli
+
+    cli.current_user = mock_user()
+    cli.current_token = "token"
+
+    create_reminder()
+
+    captured = capsys.readouterr()
+    assert "Expiration amount must be a number." in captured.out
+
+# ------------------------------
+# Test list empty
+# ------------------------------
+
+@patch("core.cli.decode_token", return_value={"sub": "user-id"})
+@patch("core.services.ReminderService.list_reminders", return_value=[])
+def test_list_reminders_empty(mock_list, mock_decode, capsys):
+    import core.cli as cli
+
+    cli.current_user = mock_user()
+    cli.current_token = "token"
+
+    list_reminders()
+
+    captured = capsys.readouterr()
+    assert "No active reminders." in captured.out
+
+# ------------------------------
+# Test reminder not found
+# ------------------------------
+
+@patch("core.cli.decode_token", return_value={"sub": "user-id"})
+@patch("core.cli.safe_input", return_value="123")
+@patch("core.services.ReminderService.delete_reminder", return_value=False)
+def test_delete_reminder_not_found(mock_delete, mock_input, mock_decode, capsys):
+    import core.cli as cli
+    
+    cli.current_user = mock_user()
+    cli.current_token = "token"
+
+    delete_reminder()
+
+    captured = capsys.readouterr()
+    assert "Reminder not found." in captured.out
+
+# ------------------------------
+# Test without login
+# ------------------------------
+
+def test_logout_without_login(capsys):
+    import core.cli as cli
+    
+    cli.current_token = None
+
+    logout()
+
+    captured = capsys.readouterr()
+    assert "You are not logged in." in captured.out
+
+# ------------------------------
+# Test invalid option
+# ------------------------------
+
+@patch("core.cli.safe_input", side_effect=["999", "0"])
+@patch("core.cli.exit_app", side_effect=SystemExit)
+def test_run_cli_invalid_option(mock_exit, mock_input, capsys):
+    try:
+        run_cli()
+    except SystemExit:
+        pass
+
+    captured = capsys.readouterr()
+    assert "Invalid choice." in captured.out
