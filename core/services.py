@@ -12,9 +12,9 @@ InvalidUUIDError,
 MaxRemindersReachedError,
 AuthenticationRequiredError)
 from core.passwords import validate_password, hash_password
-from core.utils import MAX_EXPIRATION_MINUTES, MAX_TEXT_LENGTH, MAX_REMINDERS_PER_USER
+from config import MAX_EXPIRATION_MINUTES, MAX_TEXT_LENGTH, MAX_REMINDERS_PER_USER
 from infrastructure.repositories import UserRepository
-from core.protection import check_rate_limit, apply_backoff
+from core.protection import check_rate_limit, apply_backoff, reset_attempts
 
 logger = logging.getLogger(__name__)
 
@@ -32,10 +32,17 @@ def rate_limited(user_param: str, ip_param: str):
             check_rate_limit(user_id, ip)
 
             try:
-                return func(*args, **kwargs)
-            finally:
-                # Backoff always applies
+
+                result = func(*args, **kwargs)
+            except Exception:
+                # Only applies on error
                 apply_backoff(user_id, ip)
+                raise
+
+            else:
+                # Login successful → reset attempts
+                reset_attempts(user_id, ip)
+                return result
 
         return wrapper
     return decorator
@@ -230,10 +237,10 @@ class ReminderService:
         now = datetime.now(timezone.utc)
         expires_at = now + timedelta(minutes=expires_in_minutes)
 
-        reminder_id = uuid.uuid4()  # sin str()
+        reminder_id = uuid.uuid4()  # without str()
         reminder = ReminderDB(
             id=reminder_id,
-            owner_id=user.id,  # asegurarse de que user.id es UUID
+            owner_id=user.id,  # user.id is UUID
             text=text,
             created_at=now,
             updated_at=now,

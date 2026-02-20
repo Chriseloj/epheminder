@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from core.models import UserDB, ReminderDB
 from datetime import datetime, timezone
-from core.utils import MAX_REMINDERS_PER_USER
+from config import MAX_REMINDERS_PER_USER
 from core.exceptions import MaxRemindersReachedError
 
 class UserRepository:

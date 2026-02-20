@@ -5,8 +5,10 @@ import uuid
 import hashlib
 from datetime import datetime, timedelta, timezone
 import logging
-from dotenv import load_dotenv
-import os
+from config import (SECRET_KEY,
+ALGORITHM,
+ACCESS_TOKEN_EXPIRE_MINUTES,
+REFRESH_TOKEN_EXPIRE_DAYS)
 
 logger = logging.getLogger(__name__)
 
@@ -75,19 +77,6 @@ def authorize(user, action: str, resource_owner_id=None):
 
     # Authorization successful
     return True
-
-# ===============================
-# JWT CONFIGURATION
-# ===============================
-load_dotenv(override=True)
-SECRET_KEY = os.getenv("SECRET_KEY")
-if not SECRET_KEY:
-    raise RuntimeError("SECRET_KEY is not set in the environment")
-
-ALGORITHM = "HS512"
-
-ACCESS_TOKEN_EXPIRE_MINUTES = 15
-REFRESH_TOKEN_EXPIRE_DAYS = 7
 
 # ===============================
 # TOKEN UTILITIES
