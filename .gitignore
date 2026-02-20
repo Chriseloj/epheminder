@@ -31,3 +31,7 @@ Thumbs.db
 # Ignore SQLite database
 database.db
 *.db
+
+# scripts
+
+scripts/clean_db.py

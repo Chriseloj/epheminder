@@ -223,11 +223,6 @@ def logout():
     safe_print("Logged out successfully.")
 
 def exit_app():
-    try:
-        db_session.close()
-    except Exception:
-        logger.exception("Error closing DB session")
-
     safe_print("Exiting.")
     sys.exit(0)
 # ------------------------------
@@ -244,13 +239,17 @@ menu = {
 }
 
 def run_cli():
-    while True:
-        safe_print("\n--- Main Menu ---")
-        for k, (desc, _) in menu.items():
-            safe_print(f"{k}. {desc}")
-        choice = safe_input("Choose an option: ")
-        action = menu.get(choice)
-        if action:
-            action[1]()
-        else:
-            safe_print("Invalid choice.")
+    with get_db_session() as db_session:
+        while True:
+            safe_print("\n" + "="*30)
+            safe_print("      REMINDER APP CLI")
+            safe_print("="*30)
+            for k, (desc, _) in sorted(menu.items()):
+                safe_print(f"{k}. {desc}")
+            choice = safe_input("\nChoose an option: ")
+            action = menu.get(choice)
+            if action:
+                safe_print("\n")
+                action[1]()
+            else:
+                safe_print("Invalid choice. Try again.\n")
