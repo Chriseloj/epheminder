@@ -43,11 +43,7 @@ class AuthenticationRequiredError(ReminderError):
 
 class InvalidPasswordError(ReminderError):
     """Raised when a password does not meet security requirements."""
-    def __init__(self, reason: str = "Password does not meet security requirements", log_message: str = None):
-        if log_message is None:
-            log_message = f"Invalid password: {reason}"
-        super().__init__(log_message)
-        self.public_message = "Password is not secure enough"
+    pass
 
 class InvalidUserError(ReminderError):
     """Raised when a username is invalid (length, characters, etc.)"""

@@ -1,5 +1,4 @@
 import sys
-from getpass import getpass
 from core.services import ReminderService, UserService
 from core.registration import RegistrationService
 from core.authentication_service import AuthenticationService
@@ -7,7 +6,7 @@ from core.security import Role, decode_token
 from infrastructure.storage import get_db_session
 from core.exceptions import AuthenticationRequiredError, PermissionDeniedError
 from infrastructure.repositories import ReminderRepository
-from core.exceptions import ReminderTextTooLongError, InvalidExpirationError, MaxRemindersReachedError
+from core.exceptions import ReminderTextTooLongError, InvalidExpirationError, MaxRemindersReachedError, InvalidPasswordError
 from core.logout import logout as logout_service
 import logging
 logger = logging.getLogger(__name__)
@@ -75,7 +74,10 @@ def require_login(func):
 def register_user():
     safe_print("=== Register ===")
     username = safe_input("Username: ")
-    password = getpass("Password: ")
+
+    # password visible ( Windows + VSCode)
+    password = input("Password: ")
+
     ip = "127.0.0.1"
 
     try:
@@ -87,8 +89,14 @@ def register_user():
             db_session=db_session
         )
         safe_print(f"User {user.username} registered successfully.")
+
+    except InvalidPasswordError as e:
+        # message of validation password
+        safe_print(f"Registration failed: {e.public_message or e}")
+
     except Exception as e:
-        safe_print(f"Registration failed")
+        # Generic errors
+        safe_print(f"Registration failed: {type(e).__name__} - {e}")
 
 def login_user():
 
@@ -97,7 +105,7 @@ def login_user():
         return
     safe_print("=== Login ===")
     username = safe_input("Username: ")
-    password = getpass("Password: ")
+    password = input("Password: ")
     ip = "127.0.0.1"  # CLI local
 
     try:
