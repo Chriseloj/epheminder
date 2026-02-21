@@ -4,22 +4,10 @@ from core.security import Role
 from core.models import UserDB
 from core.exceptions import MissingDataError
 from core.services import UserService
-import hashlib
-import uuid
-
+from core.passwords import validate_password
+from core.exceptions import InvalidPasswordError
+from core.security import hash_sensitive
 logger = logging.getLogger(__name__)
-
-def hash_sensitive(data) -> str:
-    """
-    Hash a sensitive value (UUID, str, etc.) using SHA256.
-    Accepts str or UUID and returns hex digest.
-    """
-    if isinstance(data, uuid.UUID):
-        data = str(data)
-    elif not isinstance(data, str):
-        data = str(data)  
-    
-    return hashlib.sha256(data.encode()).hexdigest()
 
 
 class RegistrationService:
@@ -34,6 +22,13 @@ class RegistrationService:
 
         if db_session is None:
             raise MissingDataError()
+
+        # ✅ Validate password
+        try:
+            validate_password(password)
+        except InvalidPasswordError as e:
+            # Message for CLI 
+            raise e
 
         # Delegate creation to UserService
         user = UserService.create_user(
