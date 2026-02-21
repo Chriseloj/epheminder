@@ -9,7 +9,7 @@ from core.security import (
 from core.models import RefreshTokenDB
 from datetime import datetime, timedelta, timezone
 from core.authentication import authenticate
-from core.registration import hash_sensitive
+from core.security import hash_sensitive
 
 logger = logging.getLogger(__name__)
 

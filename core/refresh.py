@@ -7,7 +7,7 @@ create_access_token,
 create_refresh_token)
 import uuid
 from core.exceptions import AuthenticationRequiredError
-from core.authentication_service import hash_sensitive
+from core.security import hash_sensitive
 import logging
 
 logger = logging.getLogger(__name__)
