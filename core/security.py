@@ -5,6 +5,8 @@ import uuid
 import hashlib
 from datetime import datetime, timedelta, timezone
 import logging
+import os
+from dotenv import load_dotenv
 from config import (SECRET_KEY,
 ALGORITHM,
 ACCESS_TOKEN_EXPIRE_MINUTES,
@@ -31,17 +33,21 @@ PERMISSIONS = {
     Role.GUEST: set()
 }
 
+load_dotenv() 
+HASH_SALT = os.getenv("HASH_SALT")
+
+if not HASH_SALT:
+    raise RuntimeError("HASH_SALT not defined")
+
 def hash_sensitive(data) -> str:
-    """
-    Hash a sensitive value (UUID, str, etc.) using SHA256.
-    Accepts str or UUID and returns hex digest.
-    """
+    """Hash a sensitive value (UUID, str, etc.) usando SHA256 + salt seguro."""
     if isinstance(data, uuid.UUID):
         data = str(data)
     elif not isinstance(data, str):
-        data = str(data)  
-    
-    return hashlib.sha256(data.encode()).hexdigest()
+        data = str(data)
+
+    salted = f"{HASH_SALT}{data}"  # salt
+    return hashlib.sha256(salted.encode()).hexdigest()
 
 def has_permission(role: Role, action: str, own: bool = False) -> bool:
     """Check if the role can perform the action."""
@@ -68,26 +74,29 @@ def authorize(user, action: str, resource_owner_id=None):
     if user is None:
         raise AuthenticationRequiredError()
     
-    role = getattr(user, "role_enum", None)
-    if role is None:
-        raise AuthenticationRequiredError("Invalid")
-
-    # Defensive check: ensure user has required attributes
+    # Defensive check
     if not hasattr(user, "role") or not hasattr(user, "id"):
         raise AuthenticationRequiredError("Invalid user context")
+    
+    try:
 
-    # Determine whether the user owns the target resource
-    own = False
-    if resource_owner_id is not None:
-        own = user.id == resource_owner_id
+        role_enum = user.role_enum
 
-    # Check if the user's role has permission for the action
-    if not has_permission(user.role_enum, action, own=own):
+    except ValueError as e:
+        logger.error(
+            f"invalid_role | user_hash={hash_sensitive(getattr(user, 'id', 'unknown'))} | reason={str(e)} | ts={datetime.now(timezone.utc).isoformat()}"
+        )
+        raise AuthenticationRequiredError("Invalid user role")
+    
+    own = resource_owner_id is not None and user.id == resource_owner_id
 
-        logger.warning(f"Permission denied | user_id={user.id}, action={action}")
-        raise PermissionDeniedError(user.role_enum.name, action)
+    # Permission check
+    if not has_permission(role_enum, action, own=own):
+        logger.warning(
+            f"permission_denied | user_hash={hash_sensitive(user.id)} | action={action} | ts={datetime.now(timezone.utc).isoformat()}"
+        )
+        raise PermissionDeniedError(role_enum.name, action)
 
-    # Authorization successful
     return True
 
 # ===============================
