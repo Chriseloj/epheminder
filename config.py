@@ -33,9 +33,8 @@ MAX_EXPIRATION_MINUTES = int(os.getenv("MAX_EXPIRATION_MINUTES", 7 * 24 * 60))
 MAX_REMINDERS_PER_USER = int(os.getenv("MAX_REMINDERS_PER_USER", 23))
 
 # ===============================
-# Redis / DB URLs (if apply)
+#  DB URLs (if apply)
 # ===============================
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///db.sqlite3")
 
 # ===============================
@@ -47,5 +46,9 @@ RATE_LIMIT_SECONDS = int(os.getenv("RATE_LIMIT_SECONDS", 60))          # Min sec
 LOCK_MINUTES = int(os.getenv("LOCK_MINUTES", 15))                # Base lock duration in minutes
 MAX_LOCK_MINUTES = int(os.getenv("MAX_LOCK_MINUTES", 24 * 60))       # Max lock duration in minutes
 BACKOFF_MULTIPLIER = int(os.getenv("BACKOFF_MULTIPLIER", 2))           # Exponential backoff multiplier
-KEY_TTL_SECONDS = int(os.getenv("KEY_TTL_SECONDS", 24 * 60 * 60 ))  # Redis key TTL (24h)
+KEY_TTL_SECONDS = int(os.getenv("KEY_TTL_SECONDS", 24 * 60 * 60 ))  # key TTL (24h)
 GLOBAL_MAX_ATTEMPTS = int(os.getenv("GLOBAL_MAX_ATTEMPTS", MAX_ATTEMPTS * 3))  # Global attempts limit across IPs
+
+
+MAX_REGISTER_ATTEMPTS = 5
+REGISTER_LOCK_MINUTES = 15
