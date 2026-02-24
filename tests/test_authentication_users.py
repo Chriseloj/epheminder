@@ -1,65 +1,105 @@
 import pytest
-from core.authentication import authenticate
+from unittest.mock import patch
+from uuid import UUID
+from core.security import hash_sensitive
 from core.exceptions import AuthenticationRequiredError
-from core.models import UserDB
 
-# ----------------------------
-# Dummy repository tests
-# ----------------------------
-class DummyRepo:
-    def __init__(self, users):
-        self.users = users
+# ------------------------
+# PATCH RATE_LIMITED
+# ------------------------
+with patch("core.services.rate_limited", lambda *a, **k: lambda f: f):
+    from core.authentication_service import AuthenticationService
 
-    def get_by_username(self, username):
-        return self.users.get(username)
+from core.exceptions import AuthenticationRequiredError, MissingDataError
+from core.models import RefreshTokenDB
 
-# ----------------------------
-# Test authentication successful
-# ----------------------------
-def test_authenticate_success(monkeypatch, ip):
-    user = UserDB(
-        id="1",
-        username="test",
-        password_hash="hashed",
-        role="USER",
-        is_active=True
-    )
-    users = {"test": user}
+# ------------------------
+# LOGIN SUCCESSFUL
+# ------------------------
+def test_login_success(db_session, sample_user):
+    with patch("core.authentication_service.authenticate") as mock_auth, \
+         patch("core.authentication_service.create_access_token") as mock_access_token:
 
-    # Patch repository and verify password
-    monkeypatch.setattr(
-        "core.authentication.UserRepository",
-        lambda db: DummyRepo(users)
-    )
-    monkeypatch.setattr("core.authentication.verify_password", lambda pw, hash_: True)
+        mock_auth.return_value = sample_user
+        mock_access_token.return_value = "access123"
 
-    # Called function
-    result = authenticate("test", "any", db_session=object(), ip=ip)
+        result = AuthenticationService.login(
+            username="alice",
+            password="secret",
+            ip="127.0.0.1",
+            db_session=db_session
+        )
 
-    # Verify result is the same objet of user
-    assert isinstance(result, UserDB)
-    assert result.id == user.id
-    assert result.username == "test"
+        assert result["access_token"] == "access123"
+        assert result["token_type"] == "bearer"
+        assert "refresh_token" in result
 
+        token_in_db = db_session.query(RefreshTokenDB).filter_by(user_id=sample_user.id).first()
+        assert token_in_db is not None
+        assert isinstance(token_in_db.id, UUID)
+        assert token_in_db.revoked is False
 
-# ----------------------------
-# Test wrong password
-# ----------------------------
-def test_authenticate_wrong_password(monkeypatch, ip):
-    user = UserDB(
-        id="1",
-        username="test",
-        password_hash="hashed",
-        role="USER",
-        is_active=True
-    )
-    users = {"test": user}
+# ------------------------
+# LOGIN WITHOUT DB SESSION
+# ------------------------
+def test_login_missing_db_session():
+    with pytest.raises(MissingDataError):
+        AuthenticationService.login(
+            username="alice",
+            password="secret",
+            ip="127.0.0.1",
+            db_session=None
+        )
 
-    monkeypatch.setattr(
-        "core.authentication.UserRepository",
-        lambda db: DummyRepo(users)
-    )
-    monkeypatch.setattr("core.authentication.verify_password", lambda pw, hash_: False)
+# ------------------------
+# LOGIN INVALID CREDENTIALS
+# ------------------------
+def test_login_invalid_credentials(db_session):
+    with patch("core.authentication_service.authenticate") as mock_auth:
+        mock_auth.side_effect = AuthenticationRequiredError("Invalid credentials")
 
-    with pytest.raises(AuthenticationRequiredError):
-        authenticate("test", "wrong", db_session=object(), ip=ip)
+        with pytest.raises(AuthenticationRequiredError):
+            AuthenticationService.login(
+                username="alice",
+                password="wrong",
+                ip="127.0.0.1",
+                db_session=db_session
+            )
+
+# ------------------------
+# HASH REFRESH TOKEN
+# ------------------------
+def test_refresh_token_hash_stored_correctly(db_session, sample_user):
+    """
+    Verifica que el refresh token se guarde correctamente en la DB
+    con hash consistente usando hash_sensitive().
+    """
+
+    # Mock authenticate and create_access_token 
+    with patch("core.authentication_service.authenticate") as mock_auth, \
+         patch("core.authentication_service.create_access_token") as mock_access_token:
+
+        mock_auth.return_value = sample_user
+        mock_access_token.return_value = "access123"
+
+        # login
+        result = AuthenticationService.login(
+            username="alice",
+            password="secret",
+            ip="127.0.0.1",
+            db_session=db_session
+        )
+
+        # Obtain real value from refresh token
+        refresh_token_value = result["refresh_token"]
+
+        # Obtain token save on DB
+        token_in_db = db_session.query(RefreshTokenDB).filter_by(user_id=sample_user.id).first()
+
+        # Calculate hash using same function app
+        expected_hash = hash_sensitive(refresh_token_value)
+
+        # ✅ Assert final
+        assert token_in_db.token_hash == expected_hash
+        assert isinstance(token_in_db.id, UUID)
+        assert token_in_db.revoked is False

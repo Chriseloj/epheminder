@@ -5,6 +5,7 @@ from infrastructure.repositories import UserRepository
 from core.protection import check_lock, check_rate_limit, apply_backoff, reset_attempts
 import logging
 from core.security import hash_sensitive
+import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -19,29 +20,32 @@ def authenticate(username: str, password: str, db_session=None, ip: str = None) 
     if db_session is None:
         raise MissingDataError()
     if not ip:
-        raise AuthenticationRequiredError("IP is required for authentication")
+        raise AuthenticationRequiredError("IP is required")
 
     repo = UserRepository(db_session)
-
-    # Fetch user from DB
     user = repo.get_by_username(username)
-    user_id = getattr(user, "id", username)  # fallback to username if user doesn't exist
 
-    # 1️⃣ Check if the user/IP is locked
-    check_lock(user_id, ip)
-
-    # 2️⃣ Check rate limit
-    check_rate_limit(user_id, ip)
-
-    # 3️⃣ Verify credentials
-    if not user or not user.is_active or not verify_password(password, getattr(user, "password_hash", "")):
-        # Apply backoff
-        apply_backoff(user_id, ip)
-        logger.warning(f"Failed login attempt for {hash_sensitive(username)}from IP {hash_sensitive(ip)}")
+    if user is None:
+        # ✅  appy backoff UUID temporal
+        fake_user_id = uuid.uuid4()
+        apply_backoff(fake_user_id, ip, db_session=db_session)
+        logger.warning(f"Failed login attempt for {hash_sensitive(username)} from IP {hash_sensitive(ip)}")
         raise AuthenticationRequiredError("Invalid credentials.")
 
-    # 4️⃣ Success → reset attempts
-    reset_attempts(user_id, ip)  # optionally, or implement a reset function if needed
+    user_id = user.id
+
+    # 1️⃣ Blocked and rate limit
+    check_lock(user_id, ip, db_session=db_session)
+    check_rate_limit(user_id, ip, db_session=db_session)
+
+    # 2️⃣ Verify password and active status 
+    if not user.is_active or not verify_password(password, getattr(user, "password_hash", "")):
+        apply_backoff(user_id, ip, db_session=db_session)
+        logger.warning(f"Failed login attempt for {hash_sensitive(username)} from IP {hash_sensitive(ip)}")
+        raise AuthenticationRequiredError("Invalid credentials.")
+
+    # 3️⃣ Login successful: delete attempts previouss completly
+    reset_attempts(user_id, ip, db_session=db_session)
     logger.info(f"User {hash_sensitive(username)} authenticated successfully from IP {hash_sensitive(ip)}")
 
     return user

@@ -57,8 +57,9 @@ def test_logout_refresh_token_not_found(mock_revoke, mock_db_session, mock_refre
     assert result is True
     # commit mustn't called
     mock_db_session.commit.assert_not_called()
-    # revoke_access_token must called
-    mock_revoke.assert_called_once_with(mock_access_token)
+    # revoke_access_token must called with both access_token and db_session
+    mock_revoke.assert_called_once_with(mock_access_token, db_session=mock_db_session)
+
 
 # ------------------------------
 # Test 4: both tokens valids
@@ -73,7 +74,8 @@ def test_logout_success(mock_revoke, mock_db_session, mock_refresh_token, mock_a
     assert result is True
     assert token_obj.revoked is True
     mock_db_session.commit.assert_called_once()
-    mock_revoke.assert_called_once_with(mock_access_token)
+    # revoke_access_token must called with both access_token and db_session
+    mock_revoke.assert_called_once_with(mock_access_token, db_session=mock_db_session)
 
 # ------------------------------
 # Test 5: hash_token 

@@ -1,7 +1,7 @@
 import uuid
 import logging
 from datetime import datetime, timedelta, timezone
-from core.models import UserDB, ReminderDB
+from core.models import UserDB, ReminderDB, RegisterAttemptDB
 from core.security import authorize, Role
 from core.exceptions import (MissingDataError,
 ReminderTextTooLongError,
@@ -15,6 +15,12 @@ from core.passwords import validate_password, hash_password
 from config import MAX_EXPIRATION_MINUTES, MAX_TEXT_LENGTH, MAX_REMINDERS_PER_USER
 from infrastructure.repositories import UserRepository
 from core.protection import check_rate_limit, apply_backoff, reset_attempts
+from functools import wraps
+from core.protection import (
+    check_register_rate_limit,
+    apply_register_backoff,
+    reset_register_attempts
+)
 
 logger = logging.getLogger(__name__)
 
@@ -23,25 +29,56 @@ def rate_limited(user_param: str, ip_param: str):
         def wrapper(*args, **kwargs):
             user_id = kwargs.get(user_param)
             ip = kwargs.get(ip_param)
+            db_session = kwargs.get("db_session")
 
-            # Fail-close if not IP
-            if not ip:
-                raise AuthenticationRequiredError("IP required for rate limiting")
+            if not db_session:
+                raise ValueError("db_session is required")
 
-            # Check rate limit
-            check_rate_limit(user_id, ip)
+            # username to UUID
+            if isinstance(user_id, str):
+                user_obj = db_session.query(UserDB).filter_by(username=user_id).first()
+                
+                if user_obj:
 
+                    user_id = user_obj.id
+
+                else:
+    
+                    user_id = user_id 
+
+            check_rate_limit(user_id, ip, db_session=db_session)
+    
             try:
-
                 result = func(*args, **kwargs)
             except Exception:
-                # Only applies on error
-                apply_backoff(user_id, ip)
+                apply_backoff(user_id, ip, db_session=db_session)
                 raise
-
             else:
-                # Login successful → reset attempts
-                reset_attempts(user_id, ip)
+                reset_attempts(user_id, ip, db_session=db_session)
+                return result
+        return wrapper
+    return decorator
+
+def register_rate_limited(user_param: str, ip_param: str):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            username = kwargs.get(user_param)
+            ip = kwargs.get(ip_param)
+            db_session = kwargs.get("db_session")
+
+            if not db_session:
+                raise ValueError("db_session is required")
+
+            check_register_rate_limit(username, ip, db_session)
+
+            try:
+                result = func(*args, **kwargs)
+            except Exception:
+                apply_register_backoff(username, ip, db_session)
+                raise
+            else:
+                reset_register_attempts(username, ip, db_session)
                 return result
 
         return wrapper
