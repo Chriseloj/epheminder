@@ -1,3 +1,5 @@
+from config import MAX_REMINDERS_PER_USER
+
 class ReminderError(Exception):
     """Base class for reminder-related errors"""
     def __init__(self, log_message: str = "An error occurred with the reminder"):
@@ -85,6 +87,9 @@ class MissingDataError(ReminderError):
 class MaxRemindersReachedError(ReminderError):
     """Raised when a user tries to create more reminders than allowed."""
     
-    def __init__(self, log_message: str = "User attempted to exceed max reminders"):
+    def __init__(self, max_reminders_per_user: int = MAX_REMINDERS_PER_USER, log_message: str = None):
+        self.max_reminders_per_user = max_reminders_per_user
+        if log_message is None:
+            log_message = f"User attempted to exceed max reminders ({max_reminders_per_user})"
         super().__init__(log_message)
-        self.public_message = "You have reached the maximum number of allowed reminders"
+        self.public_message = f"You have reached the maximum of {max_reminders_per_user} reminders."

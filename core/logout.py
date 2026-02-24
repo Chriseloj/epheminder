@@ -1,21 +1,39 @@
 from core.models import RefreshTokenDB
 from core.security import hash_token
 from core.middleware import revoke_access_token
+from sqlalchemy.orm import Session
+import logging
 
-def logout(refresh_token: str, access_token: str, db_session):
-    # Only if have refresh_token
-    if refresh_token:
-        token_hash = hash_token(refresh_token)
-        stored_token = db_session.query(RefreshTokenDB).filter_by(
-            token_hash=token_hash,
-            revoked=False
-        ).first()
-        if stored_token:
-            stored_token.revoked = True
-            db_session.commit()
+logger = logging.getLogger(__name__)
 
-    # Only if have access_token
-    if access_token:
-        revoke_access_token(access_token)
+def logout(refresh_token: str, access_token: str, db_session: Session):
+    """
+     Revoke session tokens (refresh_token y access_token).
+    """
+    try:
+        # refresh_token
+        if refresh_token:
+            token_hash = hash_token(refresh_token)
+            stored_token = db_session.query(RefreshTokenDB).filter_by(
+                token_hash=token_hash,
+                revoked=False
+            ).first()
 
-    return True
+            if stored_token:
+                stored_token.revoked = True
+                db_session.commit() 
+                logger.info(f"Refresh token revoked successfully.")
+            else:
+                logger.warning(f"Refresh token not found or already revoked.")
+
+        # access_token
+        if access_token:
+            revoke_access_token(access_token, db_session=db_session)
+            logger.info(f"Access token revoked successfully.")
+        
+        return True
+
+    except Exception as e:
+        logger.error(f"Error during logout: {str(e)}")
+        db_session.rollback()  # Error, return session
+        return False
