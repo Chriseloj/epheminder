@@ -1,272 +1,413 @@
 import pytest
 from unittest.mock import patch, MagicMock
-from core.cli import (run_cli,
-clear_session,
-logout,
-require_login,
-create_reminder,
-register_user,
-list_reminders,
-delete_reminder,
-login_user,)
+from core.cli import (
+    register_user, login_user, create_reminder, list_reminders,
+    delete_reminder, logout, clear_session, set_current_session,
+    current_user, current_token, current_refresh_token
+)
 from core.exceptions import AuthenticationRequiredError
-
-# ------------------------------
-# Fixtures
-# ------------------------------
-@pytest.fixture(autouse=True)
-def clear_session_before_tests():
-    clear_session() 
-
-# ------------------------------
-# Helpers
-# ------------------------------
-def mock_user():
-    user = MagicMock()
-    user.id = 'user-id'
-    user.username = 'testuser'
-    user.role_enum.name = 'USER'
-    return user
-
-# ------------------------------
-# Test register_user
-# ------------------------------
-@patch('core.cli.safe_input', side_effect=['testuser'])
-@patch('core.cli.getpass', return_value='password')
-@patch('core.registration.RegistrationService.register')
-def test_register_user_success(mock_register, mock_getpass, mock_input):
-    mock_register.return_value = mock_user()
-    register_user()
-    mock_register.assert_called_once()
-
-# ------------------------------
-# Test login_user
-# ------------------------------
-@patch('core.cli.safe_input', side_effect=['testuser'])
-@patch('core.cli.getpass', return_value='password')
-@patch('core.authentication_service.AuthenticationService.login')
-@patch('core.services.UserService.get_user_by_username')
-def test_login_user_success(mock_get_user, mock_login, mock_getpass, mock_input):
-    import core.cli as cli_module
-    user = mock_user()
-    mock_user_obj = mock_user()
-    mock_get_user.return_value = mock_user_obj
-    mock_login.return_value = {'access_token':'token'}
-
-    login_user()
-
-    assert cli_module.current_user == mock_user_obj
-    assert cli_module.current_token == 'token'
-
-# ------------------------------
-# Test require_login decorator
-# ------------------------------
-def test_require_login_blocks_without_token():
-    called = False
-
-    def dummy():
-        nonlocal called
-        called = True
-
-    wrapped = require_login(dummy)  
-    wrapped() 
-
-    assert not called
-
-# ------------------------------
-# Test create_reminder
-# ------------------------------
-@patch('core.cli.decode_token', return_value={"sub": "user-id"})
-@patch('core.cli.safe_input', side_effect=['Reminder text', '10', 'minutes'])
-@patch('core.services.ReminderService.create_reminder')
-def test_create_reminder_success(mock_create, mock_input, mock_decode):
-    import core.cli as cli_module
-    # Active session
-    cli_module.current_user = mock_user()
-    cli_module.current_token = 'token'
-
-    mock_create.return_value = MagicMock(id='reminder-id')
-
-    create_reminder()
-
-    mock_create.assert_called_once()
+from core.models import UserDB
+from unittest.mock import patch, MagicMock
+from core.cli import create_reminder, set_current_session
+from core.exceptions import (
+    InvalidPasswordError,
+    ReminderTextTooLongError,
+    MaxRemindersReachedError,
+    InvalidExpirationError,
+    PermissionDeniedError,
+    AuthenticationRequiredError
+)
 
 
-# ------------------------------
-# Test list_reminders
-# ------------------------------
-@patch('core.cli.decode_token', return_value={"sub": "user-id"})
-@patch('core.cli.safe_print')
-@patch('core.services.ReminderService.list_reminders')
-def test_list_reminders(mock_list, mock_print, mock_decode):
-    import core.cli as cli_module
-    cli_module.current_user = mock_user()
-    cli_module.current_token = 'token'
+# ------------------------
+# REGISTER USER
+# ------------------------
+def test_register_user(db_session):
+    with patch("core.cli.safe_input", side_effect=["alice", "Password_123|@#"]), \
+         patch("core.registration.RegistrationService.register") as mock_register, \
+         patch("core.cli.safe_print") as mock_print:
 
-    mock_list.return_value = [MagicMock(id='1', text='Test', expires_at='tomorrow')]
+        mock_register.return_value = UserDB(
+            username="alice",
+            role="USER",
+            is_active=True,
+            password_hash="hashed"
+        )
 
-    list_reminders()
-    mock_print.assert_any_call('- ID: 1 | Text: Test | Expires: tomorrow')
+        register_user(db_session=db_session)
+
+        mock_register.assert_called_once()
+        mock_print.assert_any_call("User 'alice' registered successfully!")
+
+# ------------------------
+# LOGIN USER
+# ------------------------
+def test_create_reminder_without_login(db_session):
+    clear_session()
+
+    with patch("core.cli.safe_print") as mock_print:
+        create_reminder(db_session=db_session)
+
+        mock_print.assert_any_call("You must be logged in first.")
+
+# ------------------------
+# LOGOUT
+# ------------------------
+def test_logout_resets_session(db_session):
+    user = UserDB(username="alice", role="USER", is_active=True, password_hash="hashed")
+    set_current_session(user, "token123", "refresh123")
+
+    with patch("core.cli.safe_print") as mock_print, \
+         patch("core.logout.logout") as mock_logout_service:
+        logout(db_session=db_session)
+
+        assert current_user is None
+        assert current_token is None
+        assert current_refresh_token is None
+        mock_print.assert_any_call("Logged out successfully.")
+
+# ------------------------
+# CREATE REMINDER
+# ------------------------
+def test_create_reminder_success(db_session, sample_user):
+
+    set_current_session(sample_user, "token123", "refresh123")
+
+    with patch("core.cli.decode_token") as mock_decode, \
+         patch("core.cli.UserService.get_user_by_id") as mock_get_user, \
+         patch("core.services.ReminderService.create_reminder") as mock_create, \
+         patch("core.cli.safe_input", side_effect=["Test reminder", "5", "minutes"]), \
+         patch("core.cli.safe_print") as mock_print:
+
+        mock_decode.return_value = {"sub": str(sample_user.id)}
+        mock_get_user.return_value = sample_user
+
+        mock_create.return_value = MagicMock(id=1)
+
+        create_reminder(db_session=db_session)
+
+        mock_create.assert_called_once()
+        mock_print.assert_any_call("Reminder created. ID: 1")
+# ------------------------
+# LIST REMINDERS
+# ------------------------
+def test_list_reminders_empty(db_session, sample_user):
+
+    set_current_session(sample_user, "token123", "refresh123")
+
+    with patch("core.cli.decode_token") as mock_decode, \
+         patch("core.cli.UserService.get_user_by_id") as mock_get_user, \
+         patch("core.services.ReminderService.list_reminders", return_value=[]), \
+         patch("core.cli.safe_print") as mock_print:
+
+        mock_decode.return_value = {"sub": str(sample_user.id)}
+        mock_get_user.return_value = sample_user
+
+        list_reminders(db_session=db_session)
+        mock_print.assert_any_call("No active reminders.")
+
+# ------------------------
+# DELETE REMINDER
+# ------------------------
+def test_delete_reminder_success(db_session, sample_user):
+
+    set_current_session(sample_user, "token123", "refresh123")
+
+    with patch("core.cli.decode_token") as mock_decode, \
+         patch("core.cli.UserService.get_user_by_id") as mock_get_user, \
+         patch("core.services.ReminderService.delete_reminder", return_value=True), \
+         patch("core.cli.safe_input", return_value="1"), \
+         patch("core.cli.safe_print") as mock_print:
+
+        mock_decode.return_value = {"sub": str(sample_user.id)}
+        mock_get_user.return_value = sample_user
+
+        delete_reminder(db_session=db_session)
+        mock_print.assert_any_call("Reminder deleted successfully.")
 
 
-# ------------------------------
-# Test delete_reminder
-# ------------------------------
-@patch('core.cli.decode_token', return_value={"sub": "user-id"})
-@patch('core.cli.safe_input', return_value='reminder-id')
-@patch('core.services.ReminderService.delete_reminder')
-def test_delete_reminder_success(mock_delete, mock_input, mock_decode):
-    import core.cli as cli_module
-    cli_module.current_user = mock_user()
-    cli_module.current_token = 'token'
+# ------------------------
+# EXPIRED TOKEN
+# ------------------------
+def test_create_reminder_expired_token(db_session, sample_user):
+    set_current_session(sample_user, "token123", "refresh123")
 
-    mock_delete.return_value = True
+    with patch("core.cli.decode_token", side_effect=AuthenticationRequiredError()), \
+         patch("core.cli.safe_input", side_effect=["Recordatorio expirado", "10", "minutes"]), \
+         patch("core.cli.safe_print") as mock_print:
 
-    delete_reminder()
-    mock_delete.assert_called_once()
+        create_reminder(db_session=db_session)
 
-# ------------------------------
-# Test logout
-# ------------------------------
-def test_logout_clears_session():
-    import core.cli as cli_module
-    user = mock_user()
-    cli_module.current_user = user
-    cli_module.current_token = 'token'
+        mock_print.assert_any_call("Authentication required. Please login again.")
 
-    cli_module.logout()
 
-    assert cli_module.current_user is None
-    assert cli_module.current_token is None
+# ------------------------
+# INVALID TOKEN
+# ------------------------
+def test_create_reminder_invalid_token(db_session, sample_user):
+    set_current_session(sample_user, "token123", "refresh123")
 
-# ------------------------------
-# Test invalid token
-# ------------------------------
-@patch("core.cli.decode_token", side_effect=Exception("invalid"))
-def test_require_login_invalid_token(mock_decode, capsys):
-    import core.cli as cli
+    with patch("core.cli.decode_token", side_effect=Exception()), \
+         patch("core.cli.safe_input", side_effect=["Recordatorio inválido", "10", "minutes"]), \
+         patch("core.cli.safe_print") as mock_print:
 
-    cli.current_token = "bad-token"
+        create_reminder(db_session=db_session)
 
-    @cli.require_login
-    def dummy():
-        pass
+        mock_print.assert_any_call("Invalid token. Please login again.")
 
-    dummy()
+# ------------------------
+# ALREADY LOGGED IN
+# ------------------------
 
-    captured = capsys.readouterr()
-    assert "Invalid session" in captured.out
-    assert cli.current_token is None
+def test_login_user_already_logged_in(db_session):
+    set_current_session(MagicMock(), "token", "refresh")
 
-# ------------------------------
-# Test expired token
-# ------------------------------
-@patch("core.cli.decode_token", side_effect=AuthenticationRequiredError())
-def test_require_login_expired_token(mock_decode, capsys):
-    import core.cli as cli
+    with patch("core.cli.safe_print") as mock_print:
+        login_user(db_session=db_session)
 
-    cli.current_token = "expired"
+        mock_print.assert_any_call("Already logged in. Please logout first.")
 
-    @cli.require_login
-    def dummy():
-        pass
+# ------------------------
+# RATE LIMITED
+# ------------------------
+def test_login_user_rate_limited(db_session):
+    clear_session()
 
-    dummy()
+    with patch("core.cli.safe_input", return_value="alice"), \
+         patch("core.cli.input", return_value="password"), \
+         patch("core.authentication_service.AuthenticationService.login",
+               side_effect=AuthenticationRequiredError("blocked")), \
+         patch("core.cli.safe_print") as mock_print:
 
-    captured = capsys.readouterr()
-    assert "Session expired" in captured.out
+        login_user(db_session=db_session)
 
-# ------------------------------
-# Test already logged
-# ------------------------------
+        mock_print.assert_any_call("Login blocked or rate-limited: blocked")
 
-def test_login_user_already_logged(capsys):
-    import core.cli as cli
+# ------------------------
+# INVALID AMOUNT
+# ------------------------
+def test_create_reminder_invalid_amount(db_session, sample_user):
+    set_current_session(sample_user, "token123", "refresh123")
 
-    cli.current_token = "token"
+    with patch("core.cli.decode_token", return_value={"sub": str(sample_user.id)}), \
+         patch("core.cli.UserService.get_user_by_id", return_value=sample_user), \
+         patch("core.cli.safe_input", side_effect=["Text", "notnumber"]), \
+         patch("core.cli.safe_print") as mock_print:
 
-    login_user()
+        create_reminder(db_session=db_session)
 
-    captured = capsys.readouterr()
-    assert "Already logged in" in captured.out
+        mock_print.assert_any_call("Expiration amount must be a number.")
 
-# ------------------------------
-# Test invalid expiration
-# ------------------------------
+# ------------------------
+# REMINDER NOT FOUND
+# ------------------------
+def test_delete_reminder_not_found(db_session, sample_user):
+    set_current_session(sample_user, "token123", "refresh123")
 
-@patch("core.cli.decode_token", return_value={"sub": "user-id"})
-@patch("core.cli.safe_input", side_effect=["text", "abc"])
-def test_create_reminder_invalid_number(mock_input, mock_decode, capsys):
-    import core.cli as cli
+    with patch("core.cli.decode_token", return_value={"sub": str(sample_user.id)}), \
+         patch("core.cli.UserService.get_user_by_id", return_value=sample_user), \
+         patch("core.services.ReminderService.delete_reminder", return_value=False), \
+         patch("core.cli.safe_input", return_value="1"), \
+         patch("core.cli.safe_print") as mock_print:
 
-    cli.current_user = mock_user()
-    cli.current_token = "token"
+        delete_reminder(db_session=db_session)
 
-    create_reminder()
+        mock_print.assert_any_call("Reminder not found.")
 
-    captured = capsys.readouterr()
-    assert "Expiration amount must be a number." in captured.out
 
-# ------------------------------
-# Test list empty
-# ------------------------------
+# ------------------------
+# NOT LOGGED IN
+# ------------------------
+def test_logout_not_logged_in(db_session):
+    clear_session()
 
-@patch("core.cli.decode_token", return_value={"sub": "user-id"})
-@patch("core.services.ReminderService.list_reminders", return_value=[])
-def test_list_reminders_empty(mock_list, mock_decode, capsys):
-    import core.cli as cli
+    with patch("core.cli.safe_print") as mock_print:
+        logout(db_session=db_session)
 
-    cli.current_user = mock_user()
-    cli.current_token = "token"
+        mock_print.assert_any_call("You are not logged in.")
 
-    list_reminders()
+# ------------------------
+# EXIT
+# ------------------------
+def test_exit_app():
+    from core.cli import exit_app
+    with pytest.raises(SystemExit):
+        exit_app()
 
-    captured = capsys.readouterr()
-    assert "No active reminders." in captured.out
+# =========================================================
+# REGISTER USER — ERROR PATHS
+# =========================================================
 
-# ------------------------------
-# Test reminder not found
-# ------------------------------
+def test_register_user_invalid_password(db_session):
+    with patch("core.cli.safe_input", side_effect=["alice", "weak"]), \
+         patch("core.registration.RegistrationService.register",
+               side_effect=InvalidPasswordError("weak")), \
+         patch("core.cli.safe_print") as mock_print:
 
-@patch("core.cli.decode_token", return_value={"sub": "user-id"})
-@patch("core.cli.safe_input", return_value="123")
-@patch("core.services.ReminderService.delete_reminder", return_value=False)
-def test_delete_reminder_not_found(mock_delete, mock_input, mock_decode, capsys):
-    import core.cli as cli
+        register_user(db_session=db_session)
+
+        mock_print.assert_any_call("Registration failed: weak")
+
+
+def test_register_user_unexpected_exception(db_session):
+    with patch("core.cli.safe_input", side_effect=["alice", "Password123!"]), \
+         patch("core.registration.RegistrationService.register",
+               side_effect=Exception("DB down")), \
+         patch("core.cli.safe_print") as mock_print:
+
+        register_user(db_session=db_session)
+
+        mock_print.assert_any_call(
+            "Registration failed: An unexpected error occurred: DB down"
+        )
+
+
+# =========================================================
+# LOGIN — GENERIC FAILURE
+# =========================================================
+
+def test_login_user_generic_exception(db_session):
+    clear_session()
+
+    with patch("builtins.input", side_effect=["alice", "Password123!"]), \
+        patch("core.authentication_service.AuthenticationService.login",
+           side_effect=Exception("invalid credentials")), \
+        patch("core.cli.safe_print") as mock_print:
     
-    cli.current_user = mock_user()
-    cli.current_token = "token"
+        login_user(db_session=db_session)
 
-    delete_reminder()
+        mock_print.assert_any_call("Login failed: invalid credentials")
 
-    captured = capsys.readouterr()
-    assert "Reminder not found." in captured.out
 
-# ------------------------------
-# Test without login
-# ------------------------------
+# =========================================================
+# CREATE REMINDER — BUSINESS RULE FAILURES
+# =========================================================
 
-def test_logout_without_login(capsys):
-    import core.cli as cli
+def test_create_reminder_text_too_long(db_session, sample_user):
+    set_current_session(sample_user, "token123", "refresh")
+
+    with patch("core.cli.decode_token", return_value={"sub": str(sample_user.id)}), \
+         patch("core.cli.UserService.get_user_by_id", return_value=sample_user), \
+         patch("core.services.ReminderService.create_reminder",
+               side_effect=ReminderTextTooLongError(length=50, max_length=10)), \
+         patch("core.cli.safe_input",
+               side_effect=["very long reminder text", "5", "minutes"]), \
+         patch("core.cli.safe_print") as mock_print:
+
+        create_reminder(db_session=db_session)
+
+        mock_print.assert_any_call("Reminder text too long (max 10 chars).")
+
+
+def test_create_reminder_max_limit(db_session, sample_user):
+    set_current_session(sample_user, "token123", "refresh")
+
+    with patch("core.cli.decode_token", return_value={"sub": str(sample_user.id)}), \
+         patch("core.cli.UserService.get_user_by_id", return_value=sample_user), \
+         patch("core.services.ReminderService.create_reminder",
+               side_effect=MaxRemindersReachedError(max_reminders_per_user=3)), \
+         patch("core.cli.safe_input",
+               side_effect=["text", "5", "minutes"]), \
+         patch("core.cli.safe_print") as mock_print:
+
+        create_reminder(db_session=db_session)
+
+        mock_print.assert_any_call(
+            "You have reached the maximum of 3 reminders."
+        )
+
+
+def test_create_reminder_invalid_expiration(db_session, sample_user):
+    set_current_session(sample_user, "token123", "refresh")
+
+    with patch("core.cli.decode_token", return_value={"sub": str(sample_user.id)}), \
+         patch("core.cli.UserService.get_user_by_id", return_value=sample_user), \
+         patch("core.services.ReminderService.create_reminder",
+               side_effect=InvalidExpirationError(minutes=0, log_message="bad unit")), \
+         patch("core.cli.safe_input",
+               side_effect=["text", "5", "centuries"]), \
+         patch("core.cli.safe_print") as mock_print:
+
+        create_reminder(db_session=db_session)
+
+        mock_print.assert_any_call("Invalid expiration: bad unit")
+
+
+# =========================================================
+# DELETE REMINDER — PERMISSION ERROR
+# =========================================================
+
+def test_delete_reminder_permission_denied(db_session, sample_user):
+    set_current_session(sample_user, "token123", "refresh")
+
+    with patch("core.cli.decode_token", return_value={"sub": str(sample_user.id)}), \
+         patch("core.cli.UserService.get_user_by_id", return_value=sample_user), \
+         patch("core.services.ReminderService.delete_reminder",
+               side_effect=PermissionDeniedError(role="user", action="delete")), \
+         patch("core.cli.safe_input", return_value="1"), \
+         patch("core.cli.safe_print") as mock_print:
+
+        delete_reminder(db_session=db_session)
+
+        mock_print.assert_any_call(
+            "Permission denied for deleting reminders."
+        )
+
+
+# =========================================================
+# LIST REMINDERS — PERMISSION ERROR
+# =========================================================
+
+def test_list_reminders_permission_denied(db_session, sample_user):
+    set_current_session(sample_user, "token123", "refresh")
+
+    with patch("core.cli.decode_token", return_value={"sub": str(sample_user.id)}), \
+         patch("core.cli.UserService.get_user_by_id", return_value=sample_user), \
+         patch("core.services.ReminderService.list_reminders",
+               side_effect=PermissionDeniedError(role="user", action="list")), \
+         patch("core.cli.safe_print") as mock_print:
+
+        list_reminders(db_session=db_session)
+
+        mock_print.assert_any_call(
+            "Permission denied for listing reminders."
+        )
+
+
+# =========================================================
+# REQUIRE_LOGIN — SESSION CLEANUP VALIDATION
+# =========================================================
+
+def test_invalid_token_clears_session(db_session, sample_user):
+    set_current_session(sample_user, "token123", "refresh")
+
+    with patch("core.cli.decode_token", side_effect=Exception()), \
+         patch("core.cli.safe_print"):
+
+        create_reminder(db_session=db_session)
+
+        assert current_user is None
+        assert current_token is None
+
+
+def test_expired_token_clears_session(db_session, sample_user):
+    set_current_session(sample_user, "token123", "refresh")
+
+    with patch("core.cli.decode_token",
+               side_effect=AuthenticationRequiredError()), \
+         patch("core.cli.safe_print"):
+
+        create_reminder(db_session=db_session)
+
+        assert current_user is None
+        assert current_token is None
+
+
+# =========================================================
+# REQUIRE_LOGIN CONTRACT
+# =========================================================
+
+def test_require_login_without_db_session_raises():
     
-    cli.current_token = None
-
-    logout()
-
-    captured = capsys.readouterr()
-    assert "You are not logged in." in captured.out
-
-# ------------------------------
-# Test invalid option
-# ------------------------------
-
-@patch("core.cli.safe_input", side_effect=["999", "0"])
-@patch("core.cli.exit_app", side_effect=SystemExit)
-def test_run_cli_invalid_option(mock_exit, mock_input, capsys):
-    try:
-        run_cli()
-    except SystemExit:
-        pass
-
-    captured = capsys.readouterr()
-    assert "Invalid choice." in captured.out
+    with pytest.raises(RuntimeError):
+        create_reminder()

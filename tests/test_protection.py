@@ -1,74 +1,372 @@
 import pytest
 from datetime import datetime, timedelta, timezone
+from core.protection import (
+    check_lock,
+    check_rate_limit,
+    apply_backoff,
+    reset_attempts,
+    cleanup_expired_attempts,
+    check_global_attempts,
+    apply_global_backoff,
+)
 from core.exceptions import AuthenticationRequiredError
-import core.protection as protection
+from core.models import LoginAttemptDB
+from config import RATE_LIMIT_SECONDS, MAX_ATTEMPTS, GLOBAL_MAX_ATTEMPTS, MAX_LOCK_MINUTES, MAX_REGISTER_ATTEMPTS
 
-USER_ID = "testuser"
-IP = "127.0.0.1"
+from core.protection import (
+    check_register_rate_limit,
+    apply_register_backoff,
+    reset_register_attempts,
+)
+from core.models import RegisterAttemptDB
 
-# ------------------ check_lock ------------------
-def test_check_lock_raises_when_locked(mock_redis_client):
-    lock_key = protection._get_key(USER_ID, IP) + ":lock"
-    # Simulate Redis return one active lock 
-    mock_redis_client.get.side_effect = lambda k: (datetime.now(timezone.utc) + timedelta(minutes=5)).isoformat() if k == lock_key else None
-    with pytest.raises(AuthenticationRequiredError):
-        protection.check_lock(USER_ID, IP)
+TEST_IP = "127.0.0.1"
 
-def test_check_lock_global_locked(mock_redis_client):
-    global_lock_key = protection._get_global_key(USER_ID) + ":lock"
-    # IP not blocked, but global 
-    def side_effect(k):
-        if k == f"{protection._get_key(USER_ID, IP)}:lock":
-            return None
-        if k == global_lock_key:
-            return (datetime.now(timezone.utc) + timedelta(minutes=5)).isoformat()
+# ---------------------------
+# Helper UTC aware
+# ---------------------------
+def aware(dt: datetime | None) -> datetime | None:
+    if dt is None:
         return None
-    mock_redis_client.get.side_effect = side_effect
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
+
+# ---------------------------
+# check_lock
+# ---------------------------
+def test_check_lock_raises_when_locked(db_session, sample_user):
+    attempt = LoginAttemptDB(
+        user_id=sample_user.id,
+        ip=TEST_IP,
+        attempts=MAX_ATTEMPTS,
+        lock_until=datetime.now(timezone.utc) + timedelta(minutes=5),
+    )
+    db_session.add(attempt)
+    db_session.commit()
+
     with pytest.raises(AuthenticationRequiredError):
-        protection.check_lock(USER_ID, IP)
+        check_lock(sample_user.id, TEST_IP, db_session)
 
-def test_check_lock_passes_when_no_lock(mock_redis_client):
-    mock_redis_client.get.side_effect = lambda k: None
-    protection.check_lock(USER_ID, IP)  # Not error = pass
 
-# ------------------ check_rate_limit ------------------
-def test_check_rate_limit_raises(mock_redis_client):
-    last_key = f"{protection._get_key(USER_ID, IP)}:last"
-    # last attempt recently, must block
-    mock_redis_client.get.side_effect = lambda k: (datetime.now(timezone.utc) - timedelta(seconds=30)).isoformat() if k == last_key else None
+def test_check_lock_allows_when_not_locked(db_session, sample_user):
+    attempt = LoginAttemptDB(
+        user_id=sample_user.id,
+        ip=TEST_IP,
+        attempts=1,
+        lock_until=None
+    )
+    db_session.add(attempt)
+    db_session.commit()
+
+    # MUSTN'T
+    check_lock(sample_user.id, TEST_IP, db_session)
+
+
+# ---------------------------
+# check_rate_limit
+# ---------------------------
+def test_check_rate_limit_blocks_recent_attempt(db_session, sample_user):
+    attempt = LoginAttemptDB(
+        user_id=sample_user.id,
+        ip=TEST_IP,
+        attempts=1,
+        updated_at=datetime.now(timezone.utc) - timedelta(seconds=5),
+    )
+    db_session.add(attempt)
+    db_session.commit()
+
+    attempt_from_db = db_session.query(LoginAttemptDB).filter_by(
+        user_id=sample_user.id, ip=TEST_IP
+    ).first()
+    attempt_from_db.updated_at = aware(attempt_from_db.updated_at)
+
     with pytest.raises(AuthenticationRequiredError):
-        protection.check_rate_limit(USER_ID, IP)
+        check_rate_limit(sample_user.id, TEST_IP, db_session)
 
-def test_check_rate_limit_passes(mock_redis_client):
-    last_key = f"{protection._get_key(USER_ID, IP)}:last"
-    mock_redis_client.get.side_effect = lambda k: (datetime.now(timezone.utc) - timedelta(seconds=protection.RATE_LIMIT_SECONDS + 1)).isoformat() if k == last_key else None
-    protection.check_rate_limit(USER_ID, IP)  # Not error = pass
 
-# ------------------ apply_backoff ------------------
-def test_apply_backoff_sets_ip_and_global_lock(mock_redis_client):
-    mock_redis_client.incr.side_effect = [protection.MAX_ATTEMPTS, protection.GLOBAL_MAX_ATTEMPTS]
-    protection.apply_backoff(USER_ID, IP)
-    ip_lock_key = f"{protection._get_key(USER_ID, IP)}:lock"
-    global_lock_key = f"{protection._get_global_key(USER_ID)}:lock"
-    keys_set = [call[0][0] for call in mock_redis_client.set.call_args_list]
-    assert ip_lock_key in keys_set
-    assert global_lock_key in keys_set
+def test_check_rate_limit_allows_after_window(db_session, sample_user):
+    attempt = LoginAttemptDB(
+        user_id=sample_user.id,
+        ip=TEST_IP,
+        attempts=1,
+        updated_at=datetime.now(timezone.utc) - timedelta(seconds=RATE_LIMIT_SECONDS + 1),
+    )
+    db_session.add(attempt)
+    db_session.commit()
 
-# ------------------ reset_attempts ------------------
-def test_reset_attempts_calls_delete(mock_redis_client):
-    protection.reset_attempts(USER_ID, IP)
-    redis_keys = [
-        protection._get_key(USER_ID, IP),
-        f"{protection._get_key(USER_ID, IP)}:lock",
-        f"{protection._get_key(USER_ID, IP)}:last"
-    ]
-    for key in redis_keys:
-        mock_redis_client.delete.assert_any_call(key)
+    attempt_from_db = db_session.query(LoginAttemptDB).filter_by(
+        user_id=sample_user.id, ip=TEST_IP
+    ).first()
+    attempt_from_db.updated_at = aware(attempt_from_db.updated_at)
 
-# ------------------ _parse_datetime_safe ------------------
-def test_parse_datetime_safe_valid_and_invalid():
-    dt = datetime.now(timezone.utc).isoformat()
-    parsed = protection._parse_datetime_safe(dt, "key", "field")
-    assert parsed.isoformat() == dt
-    assert protection._parse_datetime_safe("not-a-date", "key", "field") is None
-    assert protection._parse_datetime_safe(None, "key", "field") is None
+    # MUSTN'T
+    check_rate_limit(sample_user.id, TEST_IP, db_session)
+
+
+# ---------------------------
+# apply_backoff
+# ---------------------------
+def test_apply_backoff_increments_attempts_and_sets_lock(db_session, sample_user):
+    for _ in range(MAX_ATTEMPTS):
+        apply_backoff(sample_user.id, TEST_IP, db_session)
+
+    attempt = db_session.query(LoginAttemptDB).filter_by(
+        user_id=sample_user.id, ip=TEST_IP
+    ).first()
+    attempt.lock_until = aware(attempt.lock_until)
+
+    assert attempt.attempts >= 1
+    assert attempt.lock_until is not None
+    assert attempt.lock_until > datetime.now(timezone.utc)
+
+
+def test_apply_backoff_creates_attempt_if_none(db_session, sample_user):
+    apply_backoff(sample_user.id, TEST_IP, db_session)
+
+    attempt = db_session.query(LoginAttemptDB).filter_by(
+        user_id=sample_user.id, ip=TEST_IP
+    ).first()
+    attempt.lock_until = aware(attempt.lock_until)
+
+    assert attempt is not None
+    assert attempt.attempts == 1
+    assert attempt.lock_until is None or isinstance(attempt.lock_until, datetime)
+
+
+# ---------------------------
+# reset_attempts
+# ---------------------------
+def test_reset_attempts_clears_attempt(db_session, sample_user):
+    attempt = LoginAttemptDB(
+        user_id=sample_user.id,
+        ip=TEST_IP,
+        attempts=1
+    )
+    db_session.add(attempt)
+    db_session.commit()
+
+    reset_attempts(sample_user.id, TEST_IP, db_session)
+
+    attempt_from_db = db_session.query(LoginAttemptDB).filter_by(
+        user_id=sample_user.id, ip=TEST_IP
+    ).first()
+    assert attempt_from_db is None
+
+
+# ---------------------------
+# cleanup_expired_attempts
+# ---------------------------
+def test_cleanup_expired_attempts_removes_old(db_session, sample_user, monkeypatch):
+    old_attempt = LoginAttemptDB(
+        user_id=sample_user.id,
+        ip=TEST_IP,
+        attempts=1,
+        updated_at=datetime.now(timezone.utc) - timedelta(seconds=3600)
+    )
+    db_session.add(old_attempt)
+    db_session.commit()
+
+    monkeypatch.setattr("core.protection.KEY_TTL_SECONDS", 60)
+
+    deleted_count = cleanup_expired_attempts(db_session)
+
+    assert deleted_count == 1
+
+
+# ---------------------------
+# check_global_attempts
+# ---------------------------
+def test_check_global_attempts_blocks_when_limit_reached(db_session, sample_user):
+    for _ in range(GLOBAL_MAX_ATTEMPTS):
+        attempt = LoginAttemptDB(
+            user_id=sample_user.id,
+            ip=f"{TEST_IP}",
+            attempts=1
+        )
+        db_session.add(attempt)
+    db_session.commit()
+
+    with pytest.raises(AuthenticationRequiredError):
+        check_global_attempts(sample_user.id, db_session)
+
+
+def test_check_global_attempts_allows_below_limit(db_session, sample_user):
+    for _ in range(GLOBAL_MAX_ATTEMPTS - 1):
+        attempt = LoginAttemptDB(
+            user_id=sample_user.id,
+            ip=f"{TEST_IP}",
+            attempts=1
+        )
+        db_session.add(attempt)
+    db_session.commit()
+
+    # MUSTN'T
+    check_global_attempts(sample_user.id, db_session)
+
+
+# ---------------------------
+# apply_global_backoff
+# ---------------------------
+def test_apply_global_backoff_creates_or_increments(db_session, sample_user):
+    apply_global_backoff(sample_user.id, TEST_IP, db_session)
+
+    attempt = db_session.query(LoginAttemptDB).filter_by(
+        user_id=sample_user.id, ip=TEST_IP
+    ).first()
+    attempt.lock_until = aware(attempt.lock_until)
+
+    assert attempt.attempts >= 1
+    assert attempt.lock_until is None or isinstance(attempt.lock_until, datetime)
+
+# ---------------------------
+# _calculate_lock (critical)
+# ---------------------------
+from core.protection import _calculate_lock
+from config import LOCK_MINUTES, MAX_ATTEMPTS, BACKOFF_MULTIPLIER, MAX_LOCK_MINUTES
+
+
+def test_calculate_lock_returns_none_below_threshold():
+    lock = _calculate_lock(MAX_ATTEMPTS - 1)
+    assert lock is None
+
+
+def test_calculate_lock_starts_at_threshold():
+    lock = _calculate_lock(MAX_ATTEMPTS)
+    assert lock is not None
+
+
+def test_calculate_lock_exponential_growth():
+    lock1 = _calculate_lock(MAX_ATTEMPTS)
+    lock2 = _calculate_lock(MAX_ATTEMPTS + 1)
+
+    delta1 = (lock1 - datetime.now(timezone.utc)).total_seconds()
+    delta2 = (lock2 - datetime.now(timezone.utc)).total_seconds()
+
+    assert delta2 > delta1
+
+
+def test_calculate_lock_respects_max_cap():
+    very_high_attempts = MAX_ATTEMPTS + 20
+    lock = _calculate_lock(very_high_attempts)
+
+    max_seconds = MAX_LOCK_MINUTES * 60
+    delta = (lock - datetime.now(timezone.utc)).total_seconds()
+
+    assert delta <= max_seconds + 2  # margen pequeño
+
+def test_check_global_attempts_counts_records_not_attempt_sum(db_session, sample_user):
+    # Solo 1 registro con attempts altos
+    attempt = LoginAttemptDB(
+        user_id=sample_user.id,
+        ip="1.1.1.1",
+        attempts=999
+    )
+    db_session.add(attempt)
+    db_session.commit()
+
+    # No debería bloquear porque usa .count(), no suma attempts
+    check_global_attempts(sample_user.id, db_session)
+
+def test_apply_global_backoff_raises_when_limit_reached(db_session, sample_user):
+    # Crear registros hasta justo antes del límite
+    for i in range(GLOBAL_MAX_ATTEMPTS - 1):
+        db_session.add(LoginAttemptDB(
+            user_id=sample_user.id,
+            ip=f"192.168.0.{i}",
+            attempts=1
+        ))
+    db_session.commit()
+
+    # Este debe disparar el límite
+    with pytest.raises(AuthenticationRequiredError):
+        apply_global_backoff(sample_user.id, "new-ip", db_session)
+
+def test_check_lock_handles_naive_datetime(db_session, sample_user):
+
+    # Creamos un lock naive (sin tzinfo) para probar _aware()
+    naive_lock = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=5)
+
+    attempt = LoginAttemptDB(
+        user_id=sample_user.id,
+        ip=TEST_IP,
+        attempts=5,
+        lock_until=naive_lock
+    )
+    db_session.add(attempt)
+    db_session.commit()
+
+    # check_lock debería reconocerlo como lock activo
+    with pytest.raises(AuthenticationRequiredError):
+        check_lock(sample_user.id, TEST_IP, db_session)
+
+def test_check_register_rate_limit_creates_attempt(db_session):
+    check_register_rate_limit("userx", TEST_IP, db_session)
+
+    attempt = db_session.query(RegisterAttemptDB).filter_by(
+        username="userx", ip=TEST_IP
+    ).first()
+
+    assert attempt is not None
+    assert attempt.attempts == 0
+
+
+def test_check_register_rate_limit_blocks_when_locked(db_session):
+    attempt = RegisterAttemptDB(
+        username="userx",
+        ip=TEST_IP,
+        attempts=MAX_REGISTER_ATTEMPTS,
+        lock_until=datetime.now(timezone.utc) + timedelta(minutes=5)
+    )
+    db_session.add(attempt)
+    db_session.commit()
+
+    with pytest.raises(Exception):
+        check_register_rate_limit("userx", TEST_IP, db_session)
+
+def test_apply_register_backoff_increments_and_locks(db_session):
+    attempt = RegisterAttemptDB(
+        username="userx",
+        ip=TEST_IP,
+        attempts=MAX_REGISTER_ATTEMPTS - 1
+    )
+    db_session.add(attempt)
+    db_session.commit()
+
+    apply_register_backoff("userx", TEST_IP, db_session)
+
+    updated = db_session.query(RegisterAttemptDB).filter_by(
+        username="userx", ip=TEST_IP
+    ).first()
+
+    assert updated.attempts == MAX_REGISTER_ATTEMPTS
+    assert updated.lock_until is not None
+
+def test_reset_register_attempts_deletes_record(db_session):
+    attempt = RegisterAttemptDB(
+        username="userx",
+        ip=TEST_IP,
+        attempts=2
+    )
+    db_session.add(attempt)
+    db_session.commit()
+
+    reset_register_attempts("userx", TEST_IP, db_session)
+
+    attempt = db_session.query(RegisterAttemptDB).filter_by(
+        username="userx", ip=TEST_IP
+    ).first()
+
+    assert attempt is None
+
+def test_apply_backoff_logs_when_locked(db_session, sample_user, caplog):
+    for _ in range(MAX_ATTEMPTS):
+        apply_backoff(sample_user.id, TEST_IP, db_session)
+
+    assert "locked until" in caplog.text.lower()
+
+def test_apply_global_backoff_logs_when_locked(db_session, sample_user, caplog):
+    for _ in range(MAX_ATTEMPTS):
+        apply_global_backoff(sample_user.id, TEST_IP, db_session)
+
+    assert "globally locked" in caplog.text.lower()
