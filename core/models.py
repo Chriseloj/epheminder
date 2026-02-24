@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, Text
+from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, Text, Integer, func
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 from infrastructure.storage import Base
@@ -20,8 +20,13 @@ class UserDB(Base):
 
     @property
     def role_enum(self) -> Role:
-        """Return the role as a Role Enum for runtime use."""
-        return Role[self.role]
+        """Return the role as a Role Enum for runtime use, normalized and validated."""
+        try:
+            role_key = self.role.strip().upper()
+            return Role[role_key]
+        except KeyError:
+
+            raise ValueError(f"Invalid role stored in DB: '{self.role}'")
 
     def __repr__(self):
         return f"<UserDB(id={self.id}, username={self.username}, role={self.role}, active={self.is_active})>"
@@ -43,12 +48,43 @@ class ReminderDB(Base):
 class RefreshTokenDB(Base):
     __tablename__ = "refresh_tokens"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4) # UUID
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
-
     token_hash = Column(String, unique=True, nullable=False)
     expires_at = Column(DateTime(timezone=True), nullable=False)
     revoked = Column(Boolean, default=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
-    created_at = Column(DateTime(timezone=True),
-                        default=lambda: datetime.now(timezone.utc))
+    # ⚡ RELATIONSHIP WITH USER
+    user = relationship("UserDB", backref="refresh_tokens")
+     
+class LoginAttemptDB(Base):
+    __tablename__ = "login_attempts"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    ip = Column(String(50), nullable=False)
+    attempts = Column(Integer, default=0, nullable=False)
+    lock_until = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True),
+                        default=lambda: datetime.now(timezone.utc),
+                        onupdate=lambda: datetime.now(timezone.utc))
+    
+class RegisterAttemptDB(Base):
+    __tablename__ = "register_attempts"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    username = Column(String(30), nullable=False)
+    ip = Column(String(50), nullable=False)
+    attempts = Column(Integer, default=0, nullable=False)
+    lock_until = Column(DateTime(timezone=True), nullable=True)
+
+    def __repr__(self):
+        return f"<LoginAttempt(user_id={self.user_id}, ip={self.ip}, attempts={self.attempts}, lock_until={self.lock_until})>"
+    
+class RevokedTokenDB(Base):
+    __tablename__ = "revoked_tokens"
+
+    jti = Column(String, primary_key=True)
+    expires_at = Column(DateTime(timezone=True), nullable=False) 
