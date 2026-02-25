@@ -6,40 +6,51 @@ from core.models import Base, UserDB, ReminderDB, RefreshTokenDB
 from core.passwords import hash_password
 from unittest.mock import patch, MagicMock
 from core.registration import RegistrationService
-
-import warnings
-from sqlalchemy.exc import SAWarning
-import atexit
+from sqlalchemy import event
+from sqlalchemy.pool import StaticPool
 
 # ------------------------
 # ENGINE DE PRUEBA EN MEMORIA
 # ------------------------
-@pytest.fixture(scope="session")
+@pytest.fixture
 def engine():
-    engine = create_engine("sqlite:///:memory:", echo=False)
-    Base.metadata.create_all(engine)
-    yield engine
-    Base.metadata.drop_all(engine)
-    engine.dispose() 
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+        echo=False,
+    )
+    try:
+        Base.metadata.create_all(engine)
+        yield engine
+    finally:
+        Base.metadata.drop_all(engine)
+        engine.dispose()
 
 # ------------------------
 # SESSION PER TEST
 # ------------------------
-
 @pytest.fixture
 def db_session(engine):
-    """Create a session per test with nested transaction to avoid SAWarnings."""
     connection = engine.connect()
     transaction = connection.begin()
-    Session = sessionmaker(bind=connection)
+
+    Session = sessionmaker(bind=connection, expire_on_commit=False)
     session = Session()
 
-    try:
-        yield session
-    finally:
-        session.close()
+    session.begin_nested()
+
+    @event.listens_for(session, "after_transaction_end")
+    def restart_savepoint(sess, trans):
+        if trans.nested and not trans.parent and sess.is_active:
+            sess.begin_nested()
+
+    yield session
+
+    session.close()
+    if transaction.is_active:
         transaction.rollback()
-        connection.close()
+    connection.close()
 
 # ------------------------
 # FIXTURES
@@ -142,15 +153,3 @@ def test_register_exceptions(username, password, ip):
                     ip=ip,
                     db_session=None
                 )
-
-@pytest.fixture(autouse=True, scope="session")
-def suppress_sa_warnings():
-    warnings.filterwarnings("ignore", category=SAWarning)
-
-@pytest.fixture(scope="session", autouse=True)
-def cleanup_engine(engine):
-    """Dispose engine to avoid ResourceWarning."""
-    def dispose():
-        engine.dispose()
-    atexit.register(dispose)
-    yield
