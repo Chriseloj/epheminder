@@ -2,7 +2,7 @@ import threading
 import logging
 from infrastructure.storage import SessionLocal
 from infrastructure.repositories import ReminderRepository
-from core.services import ReminderService
+from core.reminder_services import ReminderService
 from core.models import RefreshTokenDB
 from datetime import datetime, timezone
 

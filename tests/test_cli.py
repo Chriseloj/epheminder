@@ -75,7 +75,7 @@ def test_create_reminder_success(db_session, sample_user):
 
     with patch("core.cli.decode_token") as mock_decode, \
          patch("core.cli.UserService.get_user_by_id") as mock_get_user, \
-         patch("core.services.ReminderService.create_reminder") as mock_create, \
+         patch("core.reminder_services.ReminderService.create_reminder") as mock_create, \
          patch("core.cli.safe_input", side_effect=["Test reminder", "5", "minutes"]), \
          patch("core.cli.safe_print") as mock_print:
 
@@ -97,7 +97,7 @@ def test_list_reminders_empty(db_session, sample_user):
 
     with patch("core.cli.decode_token") as mock_decode, \
          patch("core.cli.UserService.get_user_by_id") as mock_get_user, \
-         patch("core.services.ReminderService.list_reminders", return_value=[]), \
+         patch("core.reminder_services.ReminderService.list_reminders", return_value=[]), \
          patch("core.cli.safe_print") as mock_print:
 
         mock_decode.return_value = {"sub": str(sample_user.id)}
@@ -115,7 +115,7 @@ def test_delete_reminder_success(db_session, sample_user):
 
     with patch("core.cli.decode_token") as mock_decode, \
          patch("core.cli.UserService.get_user_by_id") as mock_get_user, \
-         patch("core.services.ReminderService.delete_reminder", return_value=True), \
+         patch("core.reminder_services.ReminderService.delete_reminder", return_value=True), \
          patch("core.cli.safe_input", return_value="1"), \
          patch("core.cli.safe_print") as mock_print:
 
@@ -206,7 +206,7 @@ def test_delete_reminder_not_found(db_session, sample_user):
 
     with patch("core.cli.decode_token", return_value={"sub": str(sample_user.id)}), \
          patch("core.cli.UserService.get_user_by_id", return_value=sample_user), \
-         patch("core.services.ReminderService.delete_reminder", return_value=False), \
+         patch("core.reminder_services.ReminderService.delete_reminder", return_value=False), \
          patch("core.cli.safe_input", return_value="1"), \
          patch("core.cli.safe_print") as mock_print:
 
@@ -288,7 +288,7 @@ def test_create_reminder_text_too_long(db_session, sample_user):
 
     with patch("core.cli.decode_token", return_value={"sub": str(sample_user.id)}), \
          patch("core.cli.UserService.get_user_by_id", return_value=sample_user), \
-         patch("core.services.ReminderService.create_reminder",
+         patch("core.reminder_services.ReminderService.create_reminder",
                side_effect=ReminderTextTooLongError(length=50, max_length=10)), \
          patch("core.cli.safe_input",
                side_effect=["very long reminder text", "5", "minutes"]), \
@@ -304,7 +304,7 @@ def test_create_reminder_max_limit(db_session, sample_user):
 
     with patch("core.cli.decode_token", return_value={"sub": str(sample_user.id)}), \
          patch("core.cli.UserService.get_user_by_id", return_value=sample_user), \
-         patch("core.services.ReminderService.create_reminder",
+         patch("core.reminder_services.ReminderService.create_reminder",
                side_effect=MaxRemindersReachedError(max_reminders_per_user=3)), \
          patch("core.cli.safe_input",
                side_effect=["text", "5", "minutes"]), \
@@ -322,7 +322,7 @@ def test_create_reminder_invalid_expiration(db_session, sample_user):
 
     with patch("core.cli.decode_token", return_value={"sub": str(sample_user.id)}), \
          patch("core.cli.UserService.get_user_by_id", return_value=sample_user), \
-         patch("core.services.ReminderService.create_reminder",
+         patch("core.reminder_services.ReminderService.create_reminder",
                side_effect=InvalidExpirationError(minutes=0, log_message="bad unit")), \
          patch("core.cli.safe_input",
                side_effect=["text", "5", "centuries"]), \
@@ -342,7 +342,7 @@ def test_delete_reminder_permission_denied(db_session, sample_user):
 
     with patch("core.cli.decode_token", return_value={"sub": str(sample_user.id)}), \
          patch("core.cli.UserService.get_user_by_id", return_value=sample_user), \
-         patch("core.services.ReminderService.delete_reminder",
+         patch("core.reminder_services.ReminderService.delete_reminder",
                side_effect=PermissionDeniedError(role="user", action="delete")), \
          patch("core.cli.safe_input", return_value="1"), \
          patch("core.cli.safe_print") as mock_print:
@@ -363,7 +363,7 @@ def test_list_reminders_permission_denied(db_session, sample_user):
 
     with patch("core.cli.decode_token", return_value={"sub": str(sample_user.id)}), \
          patch("core.cli.UserService.get_user_by_id", return_value=sample_user), \
-         patch("core.services.ReminderService.list_reminders",
+         patch("core.reminder_services.ReminderService.list_reminders",
                side_effect=PermissionDeniedError(role="user", action="list")), \
          patch("core.cli.safe_print") as mock_print:
 

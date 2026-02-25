@@ -1,5 +1,6 @@
 import sys
-from core.services import ReminderService, UserService
+from core.reminder_services import ReminderService
+from core.user_services import UserService
 from core.registration import RegistrationService
 from core.authentication_service import AuthenticationService
 from core.security import Role, decode_token, hash_sensitive

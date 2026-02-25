@@ -1,6 +1,6 @@
 import logging
 import uuid
-from core.services import rate_limited
+from core.decorators import rate_limited
 from core.exceptions import MissingDataError
 from core.security import (
     create_access_token,

@@ -1,5 +1,5 @@
 import pytest
-from core.services import UserService
+from core.user_services import UserService
 from core.security import Role
 from core.exceptions import InvalidUserError, UsernameTakenError, MissingDataError
 

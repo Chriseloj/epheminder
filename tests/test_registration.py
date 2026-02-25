@@ -4,9 +4,9 @@ from unittest.mock import MagicMock, patch
 
 
 DECORATOR_PATCHES = [
-    patch("core.services.check_register_rate_limit", return_value=None),
-    patch("core.services.apply_register_backoff", return_value=None),
-    patch("core.services.reset_register_attempts", return_value=None),
+    patch("core.decorators.check_register_rate_limit", return_value=None),
+    patch("core.decorators.apply_register_backoff", return_value=None),
+    patch("core.decorators.reset_register_attempts", return_value=None),
 ]
 
 

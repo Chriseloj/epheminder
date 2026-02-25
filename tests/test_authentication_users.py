@@ -7,7 +7,7 @@ from core.exceptions import AuthenticationRequiredError
 # ------------------------
 # PATCH RATE_LIMITED
 # ------------------------
-with patch("core.services.rate_limited", lambda *a, **k: lambda f: f):
+with patch("core.decorators.rate_limited", lambda *a, **k: lambda f: f):
     from core.authentication_service import AuthenticationService
 
 from core.exceptions import AuthenticationRequiredError, MissingDataError
