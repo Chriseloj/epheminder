@@ -1,12 +1,11 @@
 from enum import Enum, auto
 from core.exceptions import PermissionDeniedError, AuthenticationRequiredError
+from core.hash_utils import hash_sensitive
 import jwt
 import uuid
 import hashlib
 from datetime import datetime, timedelta, timezone
 import logging
-import os
-from dotenv import load_dotenv
 from config import (SECRET_KEY,
 ALGORITHM,
 ACCESS_TOKEN_EXPIRE_MINUTES,
@@ -32,22 +31,6 @@ PERMISSIONS = {
     Role.USER: {"create_own", "read_own", "update_own", "delete_own"},
     Role.GUEST: set()
 }
-
-load_dotenv() 
-HASH_SALT = os.getenv("HASH_SALT")
-
-if not HASH_SALT:
-    raise RuntimeError("HASH_SALT not defined")
-
-def hash_sensitive(data) -> str:
-    """Hash a sensitive value (UUID, str, etc.) usando SHA256 + salt seguro."""
-    if isinstance(data, uuid.UUID):
-        data = str(data)
-    elif not isinstance(data, str):
-        data = str(data)
-
-    salted = f"{HASH_SALT}{data}"  # salt
-    return hashlib.sha256(salted.encode()).hexdigest()
 
 def has_permission(role: Role, action: str, own: bool = False) -> bool:
     """Check if the role can perform the action."""

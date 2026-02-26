@@ -4,7 +4,7 @@ from core.passwords import verify_password
 from infrastructure.repositories import UserRepository
 from core.protection import check_lock, check_rate_limit, apply_backoff, reset_attempts
 import logging
-from core.security import hash_sensitive
+from core.hash_utils import hash_sensitive
 import uuid
 
 logger = logging.getLogger(__name__)

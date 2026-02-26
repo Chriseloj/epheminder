@@ -5,9 +5,9 @@ from core.security import (
     verify_token_type,
     hash_token,
     create_access_token,
-    create_refresh_token,
-    hash_sensitive
+    create_refresh_token
 )
+from core.hash_utils import hash_sensitive
 import uuid
 from core.exceptions import AuthenticationRequiredError
 from config import REFRESH_TOKEN_EXPIRE_DAYS

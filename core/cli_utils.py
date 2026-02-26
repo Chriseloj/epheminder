@@ -1,4 +1,4 @@
-from core.security import hash_sensitive
+from core.hash_utils import hash_sensitive
 from datetime import datetime, timezone
 from core.exceptions import CLIExit
 import logging

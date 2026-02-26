@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import patch
 from uuid import UUID
-from core.security import hash_sensitive
+from core.hash_utils import hash_sensitive
 from core.exceptions import AuthenticationRequiredError
 
 # ------------------------

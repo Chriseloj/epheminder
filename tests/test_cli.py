@@ -3,7 +3,7 @@ from core.cli import (
     register_user, login_user, create_reminder, list_reminders,
     delete_reminder, logout, exit_app)
 from core.cli_utils import log_event
-from core.security import hash_sensitive
+from core.hash_utils import hash_sensitive
 from core.session import session_manager
 from core.exceptions import AuthenticationRequiredError
 from core.decorators import require_login

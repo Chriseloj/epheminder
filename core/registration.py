@@ -5,7 +5,7 @@ from core.models import UserDB
 from core.exceptions import MissingDataError
 from core.passwords import validate_password
 from core.user_services import UserService
-from core.security import hash_sensitive
+from core.hash_utils import hash_sensitive
 
 logger = logging.getLogger(__name__)
 
