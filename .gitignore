@@ -34,4 +34,4 @@ database.db
 
 # scripts
 
-scripts/clean_db.py
+scripts

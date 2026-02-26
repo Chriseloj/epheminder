@@ -102,15 +102,25 @@ class InvalidPasswordError(ReminderError):
         self.public_message = "Password does not meet security requirements"
 
 class InvalidUserError(ReminderError):
-    """Raised when username is invalid"""
-    def __init__(self, username: str, reason: str = "Invalid username", log_message: str = None):
+    """Raised when the username is invalid"""
+    def __init__(
+        self,
+        username: str,
+        reason: str = "Username must be 3-30 characters and contain only letters and numbers",
+        log_message: str = None
+    ):
         self.username = username
         self.reason = reason
-        if log_message is None:
-            log_message = "Invalid username attempt"
-        super().__init__(log_message)
-        self.public_message = "Invalid credentials"
 
+        # Internal log message
+        if log_message is None:
+            log_message = f"Invalid username attempt: {username}"
+
+        super().__init__(log_message)
+
+        # Message safe for the user
+        self.public_message = f"Invalid username '{username}': {reason}"
+        
 class UsernameTakenError(ReminderError):
     """Raised when trying to register an existing username"""
     def __init__(self, username: str, log_message: str = None):
