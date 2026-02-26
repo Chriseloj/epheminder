@@ -208,7 +208,7 @@ def logout(db_session):
     safe_print("Logged out successfully.")
     log_event("info", "logout_success", user_id=session_manager.current_user)
 
-def exit_app():
+def exit_app(db_session=None):
     raise CLIExit()
 # ------------------------------
 # CLI Menu
