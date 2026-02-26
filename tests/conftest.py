@@ -120,7 +120,7 @@ def disable_rate_limiting_registration(monkeypatch):
             return func
         return wrapper
     monkeypatch.setattr(
-        "core.services.register_rate_limited",  # decorador register
+        "core.decorators.register_rate_limited",  # decorador register
         passthrough_decorator
     )
 
@@ -132,9 +132,9 @@ def disable_rate_limiting_registration(monkeypatch):
 def test_register_exceptions(username, password, ip):
     db_mock = MagicMock()
 
-    # Patch rate limit para no ejecutar su lógica
+    # Patch rate limit
     with patch("core.registration.check_register_rate_limit", return_value=None):
-        # Patch validate_password para fallo en contraseña
+        # Patch validate_password
         if password == "weak":
             with patch("core.registration.validate_password", side_effect=ValueError("Password too weak")):
                 with pytest.raises(ValueError, match="Password too weak"):

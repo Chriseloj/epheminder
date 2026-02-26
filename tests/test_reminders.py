@@ -5,7 +5,8 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock
 
-from core.services import ReminderService, UserService
+from core.user_services import UserService
+from core.reminder_services import ReminderService
 from core.models import ReminderDB
 from core.exceptions import (
     MissingDataError,

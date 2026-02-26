@@ -2,8 +2,8 @@ import pytest
 import uuid
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
-from core.services import UserService, ReminderService
-from core.models import UserDB, ReminderDB
+from core.user_services import UserService
+from core.reminder_services import ReminderService
 from core.exceptions import (
     MissingDataError,
     InvalidUserError,
@@ -12,7 +12,6 @@ from core.exceptions import (
     ReminderTextTooLongError,
     MaxRemindersReachedError,
     InvalidExpirationError,
-    AuthenticationRequiredError
 )
 from config import MAX_TEXT_LENGTH, MAX_REMINDERS_PER_USER, MAX_EXPIRATION_MINUTES
 
@@ -54,7 +53,7 @@ def test_create_reminder_no_repo(sample_user):
 def test_create_reminder_text_too_long(sample_user):
     repo_mock = MagicMock()
     long_text = "x" * (MAX_TEXT_LENGTH + 1)
-    with patch("core.services.authorize", return_value=None):
+    with patch("core.security.authorize", return_value=None):
         with pytest.raises(ReminderTextTooLongError):
             ReminderService.create_reminder(sample_user, long_text, 1, "minutes", reminder_repo=repo_mock)
 
@@ -65,13 +64,13 @@ def test_create_reminder_max_reminders(sample_user):
         MagicMock(expires_at=datetime.now(timezone.utc) + timedelta(minutes=10))
         for _ in range(MAX_REMINDERS_PER_USER)
     ]
-    with patch("core.services.authorize", return_value=None):
+    with patch("core.security.authorize", return_value=None):
         with pytest.raises(MaxRemindersReachedError):
             ReminderService.create_reminder(sample_user, "Hello", 1, "minutes", reminder_repo=repo_mock)
 
 def test_create_reminder_invalid_expiration(sample_user):
     repo_mock = MagicMock()
-    with patch("core.services.authorize", return_value=None):
+    with patch("core.security.authorize", return_value=None):
         # Negative amount
         with pytest.raises(InvalidExpirationError):
             ReminderService.parse_expiration(-1, "minutes")
@@ -99,11 +98,22 @@ def test_update_reminder_invalid_uuid(sample_user):
 def test_update_reminder_text_too_long(sample_user):
     repo_mock = MagicMock()
     reminder_mock = MagicMock()
+    
+    # 🔑  owner_id real for authorize
+    reminder_mock.owner_id = sample_user.id
     repo_mock.get_by_id.return_value = reminder_mock
+    
     long_text = "x" * (MAX_TEXT_LENGTH + 1)
-    with patch("core.services.authorize", return_value=None):
+
+    # Patch authorize to avoid problems on permission error
+    with patch("core.security.authorize", return_value=None):
         with pytest.raises(ReminderTextTooLongError):
-            ReminderService.update_reminder(sample_user, str(uuid.uuid4()), long_text, reminder_repo=repo_mock)
+            ReminderService.update_reminder(
+                sample_user, 
+                str(uuid.uuid4()), 
+                long_text, 
+                reminder_repo=repo_mock
+            )
 
 def test_delete_reminder_invalid_uuid(sample_user):
     repo_mock = MagicMock()
@@ -113,7 +123,7 @@ def test_delete_reminder_invalid_uuid(sample_user):
 def test_delete_reminder_not_found(sample_user):
     repo_mock = MagicMock()
     repo_mock.get_by_id.return_value = None
-    with patch("core.services.authorize", return_value=None):
+    with patch("core.security.authorize", return_value=None):
         assert ReminderService.delete_reminder(sample_user, str(uuid.uuid4()), reminder_repo=repo_mock) is False
 
 def test_auto_delete_expired_reminders_no_repo():

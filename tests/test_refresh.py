@@ -1,4 +1,4 @@
-from core.services import UserService
+from core.user_services import UserService
 from datetime import datetime, timedelta, timezone
 from core.refresh import refresh
 from core.models import RefreshTokenDB, UserDB

@@ -3,7 +3,7 @@ from core.authentication_service import AuthenticationService
 from core.security import authorize, Role, has_permission
 from core.models import RefreshTokenDB, ReminderDB, LoginAttemptDB
 from core.exceptions import AuthenticationRequiredError, PermissionDeniedError
-from core.services import UserService
+from core.user_services import UserService
 from datetime import datetime, timedelta, timezone
 import uuid
 from core.authentication import authenticate
