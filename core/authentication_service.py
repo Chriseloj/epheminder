@@ -8,7 +8,7 @@ from core.security import (
 from core.models import RefreshTokenDB
 from datetime import datetime, timedelta, timezone
 from core.authentication import authenticate
-from core.security import hash_sensitive
+from core.hash_utils import hash_sensitive
 from core.exceptions import AuthenticationRequiredError
 
 

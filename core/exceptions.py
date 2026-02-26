@@ -1,3 +1,4 @@
+import logging
 from config import (
     MAX_REMINDERS_PER_USER,
     MAX_TEXT_LENGTH,
@@ -11,6 +12,8 @@ from config import (
     MAX_ATTEMPTS,
     RATE_LIMIT_SECONDS,
 )
+from core.hash_utils import hash_sensitive
+logger = logging.getLogger(__name__)
 
 # ------------------------------
 # Base Reminder Error
@@ -20,6 +23,8 @@ class ReminderError(Exception):
     def __init__(self, log_message: str = "An error occurred with the reminder"):
         super().__init__(log_message)
         self.public_message = "An unexpected error occurred while processing the reminder"
+        logger.warning(log_message)
+        logger.error(log_message) 
 
 # ------------------------------
 # Permission & Authentication
@@ -111,7 +116,7 @@ class UsernameTakenError(ReminderError):
     def __init__(self, username: str, log_message: str = None):
         self.username = username
         if log_message is None:
-            log_message = f"Attempt to register already taken username: {username}"
+            log_message = f"Attempt to register already taken username: {hash_sensitive(username)}"
         super().__init__(log_message)
         self.public_message = "Invalid credentials"
 
@@ -120,7 +125,7 @@ class InvalidUUIDError(ReminderError):
     def __init__(self, uuid_str: str, log_message: str = None):
         self.uuid_str = uuid_str
         if log_message is None:
-            log_message = f"Invalid UUID format detected: {uuid_str}"
+            log_message = f"Invalid UUID format detected: {hash_sensitive(uuid_str)}"
         super().__init__(log_message)
         self.public_message = "Identifier is invalid"
 
