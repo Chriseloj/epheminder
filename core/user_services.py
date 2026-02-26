@@ -10,6 +10,7 @@ from core.exceptions import (
 )
 from core.passwords import validate_password, hash_password
 from infrastructure.repositories import UserRepository
+from core.hash_utils import hash_sensitive
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +76,7 @@ class UserService:
         # Save user
         repo.add(user)
 
-        logger.info(f"User created | Username={username} | Role={user.role} | ID={user_id}")
+        logger.info(f"User created | Username={hash_sensitive(username)} | Role={user.role} | ID={hash_sensitive(user_id)}")
 
         return user
         
