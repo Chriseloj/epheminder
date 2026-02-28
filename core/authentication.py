@@ -11,10 +11,26 @@ logger = logging.getLogger(__name__)
 
 def authenticate(username: str, password: str, db_session=None, ip: str = None) -> "UserDB":
     """
-    Authenticate a user with protection against brute force attacks:
-    - Rate limiting by IP and user
-    - Lockout after multiple failed attempts
-    - Exponential backoff effect on further attempts
+    Authenticate a user with brute-force protection mechanisms.
+
+    Security mechanisms:
+        - Rate limiting per IP and user
+        - Temporary lockout after repeated failures
+        - Exponential backoff on failed attempts
+        - Protection against user enumeration
+
+    Args:
+        username (str): Username identifier.
+        password (str): Plaintext password.
+        db_session: Active database session.
+        ip (str): Client IP address.
+
+    Returns:
+        UserDB: Authenticated user object.
+
+    Raises:
+        MissingDataError: If db_session is not provided.
+        AuthenticationRequiredError: If authentication fails.
     """
 
     if db_session is None:
@@ -23,6 +39,10 @@ def authenticate(username: str, password: str, db_session=None, ip: str = None) 
         raise AuthenticationRequiredError("IP is required")
 
     repo = UserRepository(db_session)
+
+    if not username:
+        raise MissingDataError("Username is required")
+    
     user = repo.get_by_username(username)
 
     if user is None:

@@ -34,16 +34,16 @@ def register_user(db_session):
 
         safe_print(f"Registration failed: {e}")
 
-        log_event("warning", "register_failed", user_id=session_manager.current_user)
+        log_event("warning", "register_failed", user_id=getattr(session_manager.current_user, "id", None))
         return
     except Exception as e:
         safe_print(f"Registration failed: An unexpected error occurred: {e}")
-        log_event("error", "register_failed", user_id=session_manager.current_user)
+        log_event("error", "register_failed", user_id=getattr(session_manager.current_user, "id", None))
         return
 
     # If successful
     safe_print(f"User '{username}' registered successfully!")
-    log_event("info", "register_success", user_id=session_manager.current_user)
+    log_event("info", "register_success", user_id=getattr(session_manager.current_user, "id", None))
 
 def login_user(db_session):
 
@@ -51,8 +51,7 @@ def login_user(db_session):
 
     if session_manager.logged_in:
         safe_print("Already logged in. Please logout first.")
-        log_event("warning", "login_failed",
-                user_id=session_manager.current_user)
+        log_event("warning", "login_failed", user_id=getattr(session_manager.current_user, "id", None))
         return
     
     safe_print("=== Login ===")
@@ -77,15 +76,15 @@ def login_user(db_session):
             refresh_token
         )
         safe_print("Login successful.")
-        log_event("info", "login_success", user_id=session_manager.current_user)
+        log_event("info", "login_success", user_id = getattr(session_manager.current_user, "id", None))
 
     except AuthenticationRequiredError as e:
         safe_print(f"Login blocked or rate-limited: {e}")
-        log_event("warning", "login_failed", user_id=session_manager.current_user)
+        log_event("warning", "login_failed", user_id=getattr(session_manager.current_user, "id", None))
 
     except Exception as e:
         safe_print(f"Login failed: {e}")
-        log_event("warning", "login_failed", user_id=session_manager.current_user)
+        log_event("warning", "login_failed", user_id=getattr(session_manager.current_user, "id", None))
         
 def create_reminder(db_session):
 
@@ -101,7 +100,7 @@ def create_reminder(db_session):
     except ValueError:
 
         safe_print("Expiration amount must be a number.")
-        log_event("warning", "create_failed", user_id=session_manager.current_user)
+        log_event("warning", "create_failed", user_id=getattr(session_manager.current_user, "id", None))
         return
     
     unit = safe_input("Unit (minutes/hours/days): ")
@@ -121,15 +120,15 @@ def create_reminder(db_session):
 
     except ReminderTextTooLongError as e:
         safe_print(f"Reminder text too long (max {e.max_length} chars).")
-        log_event("warning", "create_failed", user_id=session_manager.current_user)
+        log_event("warning", "create_failed", user_id=getattr(session_manager.current_user, "id", None))
     except MaxRemindersReachedError as e:
         safe_print(f"You have reached the maximum of {e.max_reminders_per_user} reminders.")
-        log_event("warning", "create_failed", user_id=session_manager.current_user)
+        log_event("warning", "create_failed", user_id=getattr(session_manager.current_user, "id", None))
     except InvalidExpirationError as e:
         safe_print(f"Invalid expiration: {e}")
-        log_event("warning", "create_failed", user_id=session_manager.current_user)
+        log_event("warning", "create_failed", user_id=getattr(session_manager.current_user, "id", None))
     except Exception as e:
-        log_event("warning", "create_failed", user_id=session_manager.current_user)
+        log_event("warning", "create_failed", user_id=getattr(session_manager.current_user, "id", None))
         safe_print("Failed to create reminder. Please try again later.")
 
 def list_reminders(db_session):
@@ -147,12 +146,12 @@ def list_reminders(db_session):
    
     except InvalidExpirationError as e:
         safe_print(f"Invalid expiration: {e}")
-        log_event("warning", "list_failed", user_id=session_manager.current_user)
+        log_event("warning", "list_failed", user_id=getattr(session_manager.current_user, "id", None))
     except PermissionDeniedError:
         safe_print("Permission denied for listing reminders.")
-        log_event("warning", "list_failed", user_id=session_manager.current_user)
+        log_event("warning", "list_failed", user_id=getattr(session_manager.current_user, "id", None))
     except Exception as e:
-        log_event("warning", "list_failed", user_id=session_manager.current_user)
+        log_event("warning", "list_failed", user_id=getattr(session_manager.current_user, "id", None))
         safe_print("Failed to list reminder. Please check your input or try again later.")
 
 def delete_reminder(db_session):
@@ -173,16 +172,16 @@ def delete_reminder(db_session):
 
         if success:
             safe_print("Reminder deleted successfully.")
-            log_event("info", "delete_success", user_id=session_manager.current_user)
+            log_event("info", "delete_success", user_id=getattr(session_manager.current_user, "id", None))
         else:
             safe_print("Reminder not found.")
-            log_event("warning", "delete_failed", user_id=session_manager.current_user)
+            log_event("warning", "delete_failed", user_id=getattr(session_manager.current_user, "id", None))
 
     except PermissionDeniedError:
         safe_print("Permission denied for deleting reminders.")
-        log_event("warning", "delete_failed", user_id=session_manager.current_user)
+        log_event("warning", "delete_failed", user_id=getattr(session_manager.current_user, "id", None))
     except Exception:
-        log_event("warning", "delete_failed", user_id=session_manager.current_user)
+        log_event("warning", "delete_failed", user_id=getattr(session_manager.current_user, "id", None))
         safe_print("Failed to delete reminder. Please try again later.")
 
 def logout(db_session):
@@ -190,7 +189,7 @@ def logout(db_session):
 
     if not session_manager.logged_in:
         safe_print("You are not logged in.")
-        log_event("warning", "logout_failed", user_id=session_manager.current_user)
+        log_event("warning", "logout_failed", user_id=getattr(session_manager.current_user, "id", None))
         return
 
     user_id = getattr(session_manager.current_user, "id", None)
@@ -202,11 +201,11 @@ def logout(db_session):
             db_session=db_session
         )
     except Exception:
-        log_event("warning", "logout_failed", user_id=session_manager.current_user)
+        log_event("warning", "logout_failed", user_id=getattr(session_manager.current_user, "id", None))
 
     session_manager.clear()
     safe_print("Logged out successfully.")
-    log_event("info", "logout_success", user_id=session_manager.current_user)
+    log_event("info", "logout_success", user_id=getattr(session_manager.current_user, "id", None))
 
 def exit_app(db_session=None):
     raise CLIExit()
@@ -230,7 +229,7 @@ def run_cli():
     try:
         while True:
             safe_print("\n" + "="*30)
-            safe_print("      REMINDER APP CLI")
+            safe_print("      Epheminder APP CLI")
             safe_print("="*30)
             for k, (desc, _) in sorted(menu.items()):
                 safe_print(f"{k}. {desc}")
@@ -252,7 +251,7 @@ def run_cli():
                 action_func(db_session=db_session)
             else:
                 safe_print("Invalid choice. Try again.\n")
-                log_event("warning", "run_failed", user_id=session_manager.current_user)
+                log_event("warning", "run_failed", user_id=getattr(session_manager.current_user, "id", None))
 
     except CLIExit:
         safe_print("Exiting.")
