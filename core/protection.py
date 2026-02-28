@@ -37,7 +37,7 @@ def _aware(dt):
 
 def _calculate_lock(attempt_count: int) -> datetime | None:
     """
-    Calcula el tiempo de bloqueo exponencial.
+    Calculate the exponential blocking time
     """
     if attempt_count < MAX_ATTEMPTS:
         return None
@@ -53,8 +53,8 @@ def _calculate_lock(attempt_count: int) -> datetime | None:
 
 def cleanup_expired_attempts(db_session: Session) -> int:
     """
-    Elimina intentos expirados por TTL.
-    Devuelve el número de filas eliminadas.
+    Remove expired attempts for TTL.
+    Return the number of rows deleted.
     """
     cutoff = _now() - timedelta(seconds=KEY_TTL_SECONDS)
 

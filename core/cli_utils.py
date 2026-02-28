@@ -6,12 +6,28 @@ import logging
 logger = logging.getLogger(__name__)
 
 def safe_input(prompt):
+    """
+    Read input safely from CLI.
+
+    Strips whitespace and converts KeyboardInterrupt/EOFError
+    into a controlled CLIExit exception.
+    """
     try:
         return input(prompt).strip()
     except (KeyboardInterrupt, EOFError):
         raise CLIExit()
 
 def log_event(level, action, user_id=None, ip=None, extra_info=None):
+    """
+    Log structured security or application events.
+
+    Args:
+        level (str): Log level ("info", "warning", "error", etc.).
+        action (str): Action identifier.
+        user_id: Optional user identifier.
+        ip: Optional client IP.
+        extra_info (str): Additional contextual information.
+    """
     parts = [f"action={action}"]
     
     if user_id is not None:
