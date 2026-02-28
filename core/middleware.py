@@ -30,7 +30,7 @@ def revoke_access_token(access_token: str, db_session):
                 db_session.commit()
                 logger.info("Access token revoked")
     except Exception as e:
-        logger.warning(f"Failed to revoke access token: {e}")
+        logger.warning(f"Failed to revoke access token: {type(e).__name__}")
 
 def is_token_revoked(jti: str, db_session) -> bool:
     if not jti:
