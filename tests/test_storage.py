@@ -6,23 +6,32 @@ import importlib
 # ------------------------------
 # Fixture
 # ------------------------------
-@pytest.fixture(scope="module")
+@pytest.fixture
 def storage_mocked():
-    # Create mock of Base with metadata.create_all
-    mock_create_all = MagicMock()
-    mock_base = MagicMock()
-    mock_base.metadata.create_all = mock_create_all
-
-    # declarative_base, os.makedirs and os.chmod before import storage
-    with patch("sqlalchemy.orm.declarative_base", return_value=mock_base), \
+    with patch("platform.system", return_value="Linux"), \
          patch("os.makedirs") as mock_makedirs, \
-         patch("os.chmod") as mock_chmod:
+         patch("os.chmod") as mock_chmod, \
+         patch("sqlalchemy.create_engine") as mock_create_engine, \
+         patch("sqlalchemy.orm.declarative_base") as mock_declarative_base:
 
-        import infrastructure.storage as storage
-        importlib.reload(storage)  # patch apply on import
+        # Mock engine
+        mock_engine_instance = MagicMock()
+        mock_create_engine.return_value = mock_engine_instance
 
-        yield storage, mock_makedirs, mock_chmod, mock_create_all
+        # Mock Base y metadata.create_all
+        mock_base_instance = MagicMock()
+        mock_declarative_base.return_value = mock_base_instance
+        mock_create_all = mock_base_instance.metadata.create_all
 
+        import infrastructure.storage
+        importlib.reload(infrastructure.storage)
+
+        yield (
+            infrastructure.storage,
+            mock_makedirs,
+            mock_chmod,
+            mock_create_all
+        )
 # ------------------------------
 # Tests import effects
 # ------------------------------
