@@ -13,11 +13,11 @@ Ideal para notas temporales que se eliminan automáticamente, sin necesidad de g
 ## Tabla de Contenidos
 - [Descripción](#descripción)
 - [Características](#características)
-- [Arquitectura](#⚙--arquitectura)
-- [Testing](#🧪--testing)
+- [Arquitectura](#arquitectura)
+- [Testing](#testing)
 - [Variables de entorno críticas](#variables-de-entorno-críticas)
 - [Instalación](#instalación)
-- [Uso / CLI](#uso/cli)
+- [Uso / CLI](#uso-cli)
 - [Ejemplo de flujo CLI](#ejemplo-de-flujo-cli)
 
 ---
@@ -198,11 +198,11 @@ Perfect for temporary notes that self-destruct automatically, without manual cle
 ## Table of Contents
 - [Description](#description)
 - [Features](#features)
-- [Architecture](#⚙--architecture)
-- [Testing](#🧪--testing)
+- [Architecture](#architecture)
+- [Testing](#testing)
 - [Critical environment variables](#critical-environment-variables)
 - [Installation](#installation)
-- [Usage / CLI](#usage/cli)
+- [Usage / CLI](#usage-cli)
 - [CLI Flow Example](#cli-flow-example)
 
 ---
