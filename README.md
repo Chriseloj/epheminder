@@ -120,7 +120,7 @@ HASH_SALT=tu_salt_aqui
 ```bash
 
 git clone <URL_DEL_REPOSITORIO>
-cd reminder
+cd epheminder
 
 ```
 
@@ -304,7 +304,7 @@ HASH_SALT=your_salt_here
 ```bash
 
 git clone <REPOSITORY_URL>
-cd reminder
+cd epheminder
 
 ```
 
