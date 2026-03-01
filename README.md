@@ -13,12 +13,12 @@ Ideal para notas temporales que se eliminan automáticamente, sin necesidad de g
 ## Tabla de Contenidos
 - [Descripción](#descripción)
 - [Características](#características)
-- [Arquitectura](#arquitectura)
-- [Testing](#testing)
-- [Variables de entorno críticas](#variables--de--entorno--críticas)
+- [Arquitectura](#⚙-arquitectura)
+- [Testing](#🧪-testing)
+- [Variables de entorno críticas](#variables-de-entorno-críticas)
 - [Instalación](#instalación)
 - [Uso / CLI](#uso--cli)
-- [Ejemplo de flujo CLI](#ejemplo--de--flujo--cli)
+- [Ejemplo de flujo CLI](#ejemplo-de-flujo-cli)
 
 ---
 
@@ -92,7 +92,7 @@ infrastructure/
 La CLI actúa como interfaz, mientras que la lógica de negocio
 permanece desacoplada y reutilizable.
 
-## 🧪 Testing
+##  🧪Testing
 
 - **pytest --cov=.**. Ejecuta todos los tests y genera un reporte de cobertura de código.
 - 178 tests automatizados.
@@ -198,12 +198,12 @@ Perfect for temporary notes that self-destruct automatically, without manual cle
 ## Table of Contents
 - [Description](#description)
 - [Features](#features)
-- [Architecture](#architecture)
-- [Testing](#testing)
-- [Critical environment variables](#critical--environment--variables)
+- [Architecture](#⚙-architecture)
+- [Testing](#🧪-testing)
+- [Critical environment variables](#critical-environment-variables)
 - [Installation](#installation)
-- [Usage / CLI](#usage--cli)
-- [CLI Flow Example](#cli--flow--example)
+- [Usage / CLI](#usage-cli)
+- [CLI Flow Example](#cli-flow-example)
 
 ---
 
