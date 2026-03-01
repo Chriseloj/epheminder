@@ -17,7 +17,7 @@ Ideal para notas temporales que se eliminan automáticamente, sin necesidad de g
 - [Testing](#testing)
 - [Variables de entorno críticas](#variables-de-entorno-críticas)
 - [Instalación](#instalación)
-- [Uso / CLI](#uso-cli)
+- [Uso / CLI](#uso--cli)
 - [Ejemplo de flujo CLI](#ejemplo-de-flujo-cli)
 
 ---
@@ -73,7 +73,7 @@ El objetivo es proporcionar un espacio simple y rápido para notas temporales, e
 - **Seguridad:** JWT, RBAC y hashing de contraseñas
 ---
 
-## ⚙ Arquitectura
+## ⚙Arquitectura
 
 Epheminder sigue una arquitectura en capas:
 
@@ -202,7 +202,7 @@ Perfect for temporary notes that self-destruct automatically, without manual cle
 - [Testing](#testing)
 - [Critical environment variables](#critical-environment-variables)
 - [Installation](#installation)
-- [Usage / CLI](#usage-cli)
+- [Usage / CLI](#usage--cli)
 - [CLI Flow Example](#cli-flow-example)
 
 ---
@@ -257,7 +257,7 @@ Its goal is to provide a simple and fast space for temporary notes, avoiding the
 - **Interface:** Lightweight CLI
 - **Security:** JWT, RBAC, and password hashing
 ---
-## ⚙ Architecture
+## ⚙Architecture
 
 Epheminder follows a layered architecture:
 
@@ -276,7 +276,7 @@ infrastructure/
 The CLI acts as the interface, while the business logic
 remains fully decoupled and reusable.
 
-## 🧪 Testing
+## 🧪Testing
 
 - **pytest --cov=.**. Runs all tests and generates a code coverage report.
 - 178 automated tests.
