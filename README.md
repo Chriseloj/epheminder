@@ -1,6 +1,6 @@
 # Epheminder 📝 – Sistema seguro de recordatorios efímeros
 
-Sistema de recordatorios efímeros seguro y rápido vía línea de comandos (CLI)
+Sistema de recordatorios efímeros seguro  vía línea de comandos (CLI)
 
 Epheminder = Ephemeral + Reminder
 
