@@ -24,7 +24,7 @@ Ideal para notas temporales que se eliminan automáticamente, sin necesidad de g
 ---
 
 ## Descripción
-`Epheminder` es una aplicación para crear post-its digitales efímeros, un sistema seguro de recordatorios que permite tomar notas rápidas de hasta 100 caracteres, con expiración automática de hasta 7 días.
+`Epheminder` es una aplicación para crear notas digitales efímeras, un sistema seguro de recordatorios que permite tomar notas rápidas de hasta 100 caracteres, con expiración configurable de hasta 7 días.
 
 El proyecto sigue una arquitectura en capas (core / infrastructure) con clara separación de responsabilidades y un enfoque fuerte en seguridad.
 
@@ -132,7 +132,7 @@ pip install -r requirements.txt
 
 ```
 
-## USO/CLI
+## USO / CLI
 
 3. Ejecutar la aplicación:
 ```bash
@@ -216,7 +216,7 @@ Perfect for temporary notes that self-destruct automatically, without manual cle
 ---
 
 ## Description
-`Epheminder` is an application to create ephemeral digital post-its, a secure reminder system that allows users to take quick notes of up to 100 characters, automatically expiring within 7 days.
+`Epheminder` is an application to create ephemeral digital notes, a secure reminder system that allows users to take quick notes of up to 100 characters, configurable expiring within 7 days.
 
 The project follows a layered architecture (core / infrastructure) with clear separation of concerns and a strong focus on security.
 
@@ -324,7 +324,7 @@ pip install -r requirements.txt
 
 ```
 
-## Usage/CLI
+## Usage / CLI
 3. Run app:
 ```bash
 
