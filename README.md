@@ -30,7 +30,7 @@ El proyecto sigue una arquitectura en capas (core / infrastructure) con clara se
 
 Aunque la aplicación se presenta como CLI, la lógica de negocio está desacoplada de la interfaz, lo que permite reemplazar la CLI por una API HTTP sin modificar el dominio.
 
-El objetivo es proporcionar un espacio simple y rápido para notas temporales, evitando la sobrecarga de otras apps de notas o tareas.
+El objetivo es proporcionar un espacio simple y rápido para notas temporales, evitando la sobrecarga.
 
 ---
 
@@ -222,7 +222,7 @@ The project follows a layered architecture (core / infrastructure) with clear se
 
 Although presented as a CLI application, the business logic is fully decoupled from the interface, allowing the CLI to be replaced with an HTTP API without changing the core domain.
 
-Its goal is to provide a simple and fast space for temporary notes, avoiding the overload of other note-taking or task apps.
+Its goal is to provide a simple and fast space for temporary notes, avoiding the overload.
 
 ---
 
