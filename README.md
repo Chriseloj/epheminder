@@ -19,6 +19,7 @@ Ideal para notas temporales que se eliminan automáticamente, sin necesidad de g
 - [Instalación](#instalación)
 - [Uso / CLI](#uso--cli)
 - [Ejemplo de flujo CLI](#ejemplo-de-flujo-cli)
+- [Documentation / Slides](#documentación--slides) 
 
 ---
 
@@ -181,6 +182,12 @@ Choose an option: 0
 Exiting.
 ```
 
+## Documentación / Slides
+
+Project slides:
+
+- Version en Español: [Epheminder_Presentation_ES.pdf](./docs/Epheminder_Presentation_ES.pdf)  
+
 ---  
 ## English Version
 ---
@@ -204,6 +211,7 @@ Perfect for temporary notes that self-destruct automatically, without manual cle
 - [Installation](#installation)
 - [Usage / CLI](#usage--cli)
 - [CLI Flow Example](#cli-flow-example)
+- [Documentation / Slides](#documentation--slides) 
 
 ---
 
@@ -363,3 +371,9 @@ Logged out successfully.
 Choose an option: 0
 Exiting.
 ```
+
+## Documentation / Slides
+
+Project slides:
+
+- English version: [Epheminder_Presentation_EN.pdf](./docs/Epheminder_Presentation_EN.pdf)
