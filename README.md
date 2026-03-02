@@ -1,4 +1,4 @@
-# Epheminder 📝 – Post-it digital efímero
+# Epheminder 📝 – Sistema seguro de recordatorios efímeros
 
 Sistema de recordatorios efímeros seguro y rápido vía línea de comandos (CLI)
 
@@ -192,7 +192,7 @@ Project slides:
 ## English Version
 ---
 
-# Epheminder 📝 – Ephemeral Digital Post-it
+# Epheminder 📝 – Secure Ephemeral Reminder CLI
 
 Secure and fast ephemeral reminder system via command-line interface (CLI)
 
