@@ -216,7 +216,7 @@ Designed to create temporary notes with configurable expiration and automatic cl
 ---
 
 ## Description
-`Epheminder` is an application to create ephemeral digital notes, a secure reminder system that allows users to take quick notes of up to 100 characters, configurable expiring within 7 days.
+`Epheminder` is an application for creating ephemeral digital notes — a secure reminder system that allows users to take quick notes of up to 100 characters, with configurable expiration up to 7 days.
 
 The project follows a layered architecture (core / infrastructure) with clear separation of concerns and a strong focus on security.
 
