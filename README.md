@@ -4,7 +4,7 @@ Sistema de recordatorios efímeros seguro y rápido vía línea de comandos (CLI
 
 Epheminder = Ephemeral + Reminder
 
-Ideal para notas temporales que se eliminan automáticamente, sin necesidad de gestionarlas manualmente.
+Diseñado para crear notas temporales con expiración configurable y limpieza automática.
 
 **English version below / Versión en inglés abajo**
 
@@ -198,7 +198,7 @@ Secure and fast ephemeral reminder system via command-line interface (CLI)
 
 Epheminder = Ephemeral + Reminder
 
-Perfect for temporary notes that self-destruct automatically, without manual cleanup.
+Designed to create temporary notes with configurable expiration and automatic cleanup.
 
 ---
 
