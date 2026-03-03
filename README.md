@@ -105,7 +105,7 @@ permanece desacoplada y reutilizable.
 
 En sistemas POSIX (Linux/macOS), los permisos del archivo de la base de datos se restringen automáticamente al propietario (0600).
 
-En Windows, los permisos de archivos se gestionan mediante ACLs de NTFS. La aplicación depende de los permisos por defecto del directorio del proyecto.
+En Windows, la aplicación ahora usa ACLs de NTFS para que solo el usuario actual pueda acceder al archivo (equivalente a icacls database.db /inheritance:r /grant:r %USERNAME%:F).
 Si se ejecuta en una máquina compartida, asegúrate de que el directorio del proyecto no sea accesible públicamente.
 
 ## Variables de entorno críticas
@@ -299,7 +299,7 @@ remains fully decoupled and reusable.
 
 On POSIX systems (Linux/macOS), the database file permissions are automatically restricted to the owner (0600).
 
-On Windows, file permissions are managed via NTFS ACLs. The application relies on the default permissions of the project directory.
+On Windows, the application now uses NTFS ACLs to restrict access to the current user only (equivalent to icacls database.db /inheritance:r /grant:r %USERNAME%:F).
 If running on a shared machine, ensure the project directory is not publicly accessible.
 
 ## Critical environment variables

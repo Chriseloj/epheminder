@@ -32,12 +32,33 @@ Base.metadata.create_all(bind=engine)
 
 
 def _secure_database_file():
-    if DATABASE_FILE.exists() and platform.system() != "Windows":
+    """
+    Restrict database file access to the current user.
+    On POSIX systems uses chmod 0600.
+    On Windows uses ACL to allow only the current user.
+    """
+    if not DATABASE_FILE.exists():
+        return
+
+    if platform.system() == "Windows":
+        # Allow only the current user to read/write
+        # Equivalent to running in CMD: icacls "database.db" /inheritance:r /grant:r "%USERNAME%:F"
+        try:
+            import subprocess
+            username = os.getlogin()
+            subprocess.run(
+                ["icacls", str(DATABASE_FILE), "/inheritance:r", "/grant:r", f"{username}:F"],
+                check=True
+            )
+        except Exception as e:
+            print(f"⚠ Could not restrict database file on Windows: {e}")
+
+    else:
+        # POSIX systems: owner read/write only
         try:
             os.chmod(DATABASE_FILE, 0o600)
         except PermissionError:
-            pass
-
+            print("⚠ Could not restrict database file on POSIX")
 
 _secure_database_file()
 
