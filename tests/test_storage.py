@@ -9,7 +9,7 @@ import importlib
 @pytest.fixture
 def storage_mocked():
     with patch("platform.system", return_value="Linux"), \
-         patch("os.makedirs") as mock_makedirs, \
+         patch("pathlib.Path.mkdir") as mock_mkdir, \
          patch("os.chmod") as mock_chmod, \
          patch("sqlalchemy.create_engine") as mock_create_engine, \
          patch("sqlalchemy.orm.declarative_base") as mock_declarative_base:
@@ -28,17 +28,18 @@ def storage_mocked():
 
         yield (
             infrastructure.storage,
-            mock_makedirs,
+            mock_mkdir,
             mock_chmod,
             mock_create_all
         )
+
 # ------------------------------
 # Tests import effects
 # ------------------------------
 def test_storage_dir_created(storage_mocked):
-    storage, mock_makedirs, _, _ = storage_mocked
-    mock_makedirs.assert_called_with(storage.STORAGE_DIR, exist_ok=True)
-
+    storage, mock_mkdir, _, _ = storage_mocked
+    # Assert mkdir 
+    mock_mkdir.assert_called_with(parents=True, exist_ok=True)
 def test_chmod_called_on_database_file(storage_mocked):
     storage, _, mock_chmod, _ = storage_mocked
     mock_chmod.assert_called_with(storage.DATABASE_FILE, 0o600)
