@@ -1,32 +1,46 @@
 import os
+import platform
+from pathlib import Path
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base, Session
 from typing import Generator
 from contextlib import contextmanager
-import platform
 
-STORAGE_DIR = "infrastructure/storage"
-os.makedirs(STORAGE_DIR, exist_ok=True)
 
-DATABASE_FILE = os.path.join(STORAGE_DIR, "database.db")
+BASE_DIR = Path(__file__).resolve().parent
+STORAGE_DIR = BASE_DIR # Compatibility with tests
+DATABASE_FILE = BASE_DIR / "database.db"
 DATABASE_URL = f"sqlite:///{DATABASE_FILE}"
 
+STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 
-# 🔐 Restrict file permissions to owner only (read/write) on POSIX systems.
-# Note: os.chmod has no effect on Windows; Windows handles file permissions
-# via ACLs. Ensure proper security if running in a multi-user environment.
-if platform.system() != "Windows":
-    try:
-        os.chmod(DATABASE_FILE, 0o600)
-    except FileNotFoundError:
-        pass
+engine = create_engine(
+    DATABASE_URL,
+    echo=False,
+    future=True,
+    connect_args={"check_same_thread": False},  # Required for scheduler threads
+)
 
-engine = create_engine(DATABASE_URL, echo=False, future=True)
-SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
+SessionLocal = sessionmaker(
+    bind=engine,
+    autocommit=False,
+    autoflush=False,
+)
 
 Base = declarative_base()
-
 Base.metadata.create_all(bind=engine)
+
+
+def _secure_database_file():
+    if DATABASE_FILE.exists() and platform.system() != "Windows":
+        try:
+            os.chmod(DATABASE_FILE, 0o600)
+        except PermissionError:
+            pass
+
+
+_secure_database_file()
+
 
 @contextmanager
 def get_db_session() -> Generator[Session, None, None]:
@@ -34,7 +48,7 @@ def get_db_session() -> Generator[Session, None, None]:
     try:
         yield session
         session.commit()
-    except:
+    except Exception:
         session.rollback()
         raise
     finally:

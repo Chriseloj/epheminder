@@ -101,9 +101,12 @@ permanece desacoplada y reutilizable.
 - Tests unitarios e integración.
 - Validación de flujos de autenticación, seguridad y expiración.
 
-⚠ **Nota sobre Windows y variables de entorno**
+⚠ Aviso de Seguridad en Windows
 
-En sistemas Windows, los permisos del archivo de la base de datos (`database.db`) no se restringen automáticamente como en sistemas POSIX. Si varios usuarios comparten la máquina, asegúrate de proteger este archivo.  
+En sistemas POSIX (Linux/macOS), los permisos del archivo de la base de datos se restringen automáticamente al propietario (0600).
+
+En Windows, los permisos de archivos se gestionan mediante ACLs de NTFS. La aplicación depende de los permisos por defecto del directorio del proyecto.
+Si se ejecuta en una máquina compartida, asegúrate de que el directorio del proyecto no sea accesible públicamente.
 
 ## Variables de entorno críticas
 
@@ -292,9 +295,12 @@ remains fully decoupled and reusable.
 - Unit and integration tests.
 - Security and authentication flows fully tested.
 
-⚠ **Windows and Environment Variables Notice**
+⚠ Windows Security Notice
 
-On Windows systems, the database file (database.db) permissions are not automatically restricted as on POSIX systems. If multiple users share the machine, make sure to secure this file.
+On POSIX systems (Linux/macOS), the database file permissions are automatically restricted to the owner (0600).
+
+On Windows, file permissions are managed via NTFS ACLs. The application relies on the default permissions of the project directory.
+If running on a shared machine, ensure the project directory is not publicly accessible.
 
 ## Critical environment variables
 
