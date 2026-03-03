@@ -5,7 +5,9 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base, Session
 from typing import Generator
 from contextlib import contextmanager
+import logging
 
+logger = logging.getLogger(__name__)
 
 BASE_DIR = Path(__file__).resolve().parent
 STORAGE_DIR = BASE_DIR # Compatibility with tests
@@ -51,14 +53,14 @@ def _secure_database_file():
                 check=True
             )
         except Exception as e:
-            print(f"⚠ Could not restrict database file on Windows: {e}")
+           logger.warning("Could not secure database file, check permissions.")
 
     else:
         # POSIX systems: owner read/write only
         try:
             os.chmod(DATABASE_FILE, 0o600)
         except PermissionError:
-            print("⚠ Could not restrict database file on POSIX")
+            logger.warning("Could not secure database file, check permissions.")
 
 _secure_database_file()
 
