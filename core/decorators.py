@@ -106,19 +106,30 @@ def require_login(arg=None):
             db_session = kwargs.get("db_session")
             if not db_session:
                 raise RuntimeError("db_session must be passed to CLI functions")
+            
+            user = session_manager.current_user
+            user_safe = hash_sensitive(user) if user else "unknown"
 
-            if not session_manager.current_user:
+            if not user:
+                logger.info(f"Unauthorized CLI access attempt: no user in session")
                 safe_print("Please login first.")
                 return
 
             try:
+
                 decode_token(session_manager.access_token)
+
             except AuthenticationRequiredError:
+
                 session_manager.clear()
+                logger.warning(f"Authentication required: session cleared for user {user_safe}")
                 safe_print("Please login again.")
                 return
-            except Exception:
+            
+            except Exception as e:
+
                 session_manager.clear()
+                logger.error(f"Unexpected login error for user {user_safe}: {e}")
                 safe_print("Invalid. Please login again.")
                 return
 
