@@ -7,7 +7,7 @@ Epheminder = Ephemeral + Reminder
 
 Diseñado para crear notas temporales con expiración configurable y limpieza automática.
 
-[English](#english-version)
+[Read English version](#english-version)
 
 ---
 
@@ -205,7 +205,7 @@ Epheminder = Ephemeral + Reminder
 
 Designed to create temporary notes with configurable expiration and automatic cleanup.
 
-[Español](#spanish-version)
+[Leer versión en Español](#spanish-version)
 
 ---
 
