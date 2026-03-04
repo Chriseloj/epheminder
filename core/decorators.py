@@ -9,10 +9,11 @@ apply_backoff,
 reset_attempts)
 from core.session import session_manager
 from core.security import decode_token
-from core.exceptions import AuthenticationRequiredError
+from core.exceptions import AuthenticationRequiredError, RateLimitExceededError
 from core.cli_utils import safe_print
 import logging
 from functools import wraps
+from core.hash_utils import hash_sensitive
 
 
 logger = logging.getLogger(__name__)
@@ -35,9 +36,17 @@ def rate_limited(user_param: str, ip_param: str):
             check_rate_limit(user_id, ip, db_session=db_session)
 
             try:
+
                 result = func(*args, **kwargs)
-            except Exception:
+
+            except RateLimitExceededError as e:
+                safe_user = hash_sensitive(user_id)
+                safe_ip = hash_sensitive(str(ip)) if ip else "unknown"
+                logger.warning(f"Apply backoff to user {safe_user} | ip {safe_ip}: {e}")
                 apply_backoff(user_id, ip, db_session=db_session)
+                raise
+
+            except Exception:
                 raise
             else:
                 reset_attempts(user_id, ip, db_session=db_session)
@@ -60,8 +69,17 @@ def register_rate_limited(user_param: str, ip_param: str):
 
             try:
                 result = func(*args, **kwargs)
+
+            except RateLimitExceededError as e:
+
+                safe_user = hash_sensitive(username)
+                safe_ip = hash_sensitive(str(ip)) if ip else "unknown"
+                logger.warning(f"Apply backoff to user {safe_user} | ip {safe_ip}: {e}")
+                apply_backoff(username, ip, db_session=db_session)
+                raise
+
+                
             except Exception:
-                apply_register_backoff(username, ip, db_session)
                 raise
             else:
                 reset_register_attempts(username, ip, db_session)
