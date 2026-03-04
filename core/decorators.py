@@ -9,10 +9,11 @@ apply_backoff,
 reset_attempts)
 from core.session import session_manager
 from core.security import decode_token
-from core.exceptions import AuthenticationRequiredError
+from core.exceptions import AuthenticationRequiredError, RateLimitExceededError
 from core.cli_utils import safe_print
 import logging
 from functools import wraps
+from core.hash_utils import hash_sensitive
 
 
 logger = logging.getLogger(__name__)
@@ -28,19 +29,34 @@ def rate_limited(user_param: str, ip_param: str):
             if not db_session:
                 raise ValueError("db_session is required")
 
-            if isinstance(user_id, str):
+            user_obj = kwargs.get("user_obj")
+
+            if isinstance(user_id, str) and not user_obj:
                 user_obj = db_session.query(UserDB).filter_by(username=user_id).first()
-                user_id = user_obj.id if user_obj else user_id
+            user_id = user_obj.id if user_obj else user_id
 
             check_rate_limit(user_id, ip, db_session=db_session)
 
+            safe_user = hash_sensitive(user_id)
+            safe_ip = hash_sensitive(str(ip)) if ip else "unknown"
+            logger.info(f"Rate-limit attempt for user {safe_user} | ip {safe_ip}")
+
             try:
+
                 result = func(*args, **kwargs)
-            except Exception:
+
+            except RateLimitExceededError as e:
+                safe_user = hash_sensitive(user_id)
+                safe_ip = hash_sensitive(str(ip)) if ip else "unknown"
+                logger.warning(f"Apply backoff to user {safe_user} | ip {safe_ip}: {e}")
                 apply_backoff(user_id, ip, db_session=db_session)
+                raise
+
+            except Exception:
                 raise
             else:
                 reset_attempts(user_id, ip, db_session=db_session)
+                logger.info(f"Reset attempts for user {safe_user} | ip {safe_ip}")
                 return result
         return wrapper
     return decorator
@@ -58,13 +74,27 @@ def register_rate_limited(user_param: str, ip_param: str):
 
             check_register_rate_limit(username, ip, db_session)
 
+            safe_user = hash_sensitive(username)
+            safe_ip = hash_sensitive(str(ip)) if ip else "unknown"
+            logger.info(f"Rate-limit attempt for user {safe_user} | ip {safe_ip}")
+
             try:
                 result = func(*args, **kwargs)
+
+            except RateLimitExceededError as e:
+
+                safe_user = hash_sensitive(username)
+                safe_ip = hash_sensitive(str(ip)) if ip else "unknown"
+                logger.warning(f"Register backoff applied to user {safe_user} | ip {safe_ip}: {e}")
+                apply_register_backoff(username, ip, db_session=db_session)
+                raise
+
+                
             except Exception:
-                apply_register_backoff(username, ip, db_session)
                 raise
             else:
                 reset_register_attempts(username, ip, db_session)
+                logger.info(f"Reset attempts for user {safe_user} | ip {safe_ip}")
                 return result
 
         return wrapper
@@ -78,19 +108,30 @@ def require_login(arg=None):
             db_session = kwargs.get("db_session")
             if not db_session:
                 raise RuntimeError("db_session must be passed to CLI functions")
+            
+            user = session_manager.current_user
+            user_safe = hash_sensitive(user) if user else "unknown"
 
-            if not session_manager.current_user:
+            if not user:
+                logger.info(f"Unauthorized CLI access attempt: no user in session")
                 safe_print("Please login first.")
                 return
 
             try:
+
                 decode_token(session_manager.access_token)
+
             except AuthenticationRequiredError:
+
                 session_manager.clear()
+                logger.warning(f"Authentication required: session cleared for user {user_safe}")
                 safe_print("Please login again.")
                 return
-            except Exception:
+            
+            except Exception as e:
+
                 session_manager.clear()
+                logger.error(f"Unexpected login error for user {user_safe}: {e}")
                 safe_print("Invalid. Please login again.")
                 return
 
