@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 def refresh(refresh_token: str, db_session):
     """
-    Rota un refresh token: invalida el token viejo, crea uno nuevo y devuelve access y refresh tokens.
+    Rotate a refresh token: invalidates the old token, create a new one, and returns the access and refresh tokens.
     """
     try:
         # Decode and verifiy token
