@@ -29,9 +29,11 @@ def rate_limited(user_param: str, ip_param: str):
             if not db_session:
                 raise ValueError("db_session is required")
 
-            if isinstance(user_id, str):
+            user_obj = kwargs.get("user_obj")
+
+            if isinstance(user_id, str) and not user_obj:
                 user_obj = db_session.query(UserDB).filter_by(username=user_id).first()
-                user_id = user_obj.id if user_obj else user_id
+            user_id = user_obj.id if user_obj else user_id
 
             check_rate_limit(user_id, ip, db_session=db_session)
 
