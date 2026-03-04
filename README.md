@@ -1,4 +1,5 @@
-# Epheminder 📝 – Sistema seguro de recordatorios efímeros
+<a name="spanish-version"></a>
+# Epheminder – Sistema seguro de recordatorios efímeros
 
 Sistema de recordatorios efímeros seguro  vía línea de comandos (CLI)
 
@@ -6,7 +7,7 @@ Epheminder = Ephemeral + Reminder
 
 Diseñado para crear notas temporales con expiración configurable y limpieza automática.
 
-**English version below / Versión en inglés abajo**
+[English](#english-version)
 
 ---
 
@@ -96,8 +97,8 @@ permanece desacoplada y reutilizable.
 ##  🧪Testing
 
 - **pytest --cov=.**. Ejecuta todos los tests y genera un reporte de cobertura de código.
-- 178 tests automatizados.
-- 93% de cobertura total.
+- 187 tests automatizados.
+- 94% de cobertura total.
 - Tests unitarios e integración.
 - Validación de flujos de autenticación, seguridad y expiración.
 
@@ -192,16 +193,19 @@ Project slides:
 - Version en Español: [Epheminder_Presentation_ES.pdf](./docs/Epheminder_Presentation_ES.pdf)  
 
 ---  
+<a name="english-version"></a>
 ## English Version
 ---
 
-# Epheminder 📝 – Secure Ephemeral Reminder CLI
+# Epheminder – Secure Ephemeral Reminder CLI
 
 Secure and fast ephemeral reminder system via command-line interface (CLI)
 
 Epheminder = Ephemeral + Reminder
 
 Designed to create temporary notes with configurable expiration and automatic cleanup.
+
+[Español](#spanish-version)
 
 ---
 
@@ -290,8 +294,8 @@ remains fully decoupled and reusable.
 ## 🧪Testing
 
 - **pytest --cov=.**. Runs all tests and generates a code coverage report.
-- 178 automated tests.
-- 93% total coverage.
+- 187 automated tests.
+- 94% total coverage.
 - Unit and integration tests.
 - Security and authentication flows fully tested.
 
