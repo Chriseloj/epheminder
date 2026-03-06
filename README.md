@@ -77,28 +77,56 @@ El objetivo es proporcionar un espacio simple y rápido para notas temporales, e
 
 ## ⚙Arquitectura
 
-Epheminder sigue una arquitectura en capas:
+Epheminder sigue una arquitectura en capas con separación clara de responsabilidades.
 
-core/
- ├─ autenticación
- ├─ autorización (RBAC)
- ├─ servicios de dominio
- ├─ seguridad
- └─ lógica de negocio
-
-infrastructure/
- ├─ repositorios
- ├─ almacenamiento (SQLAlchemy)
- └─ schedulers (daemon threads)
-
-La CLI actúa como interfaz, mientras que la lógica de negocio
+La CLI actúa únicamente como interfaz, mientras que la lógica de negocio
 permanece desacoplada y reutilizable.
+
+Flujo de capas:
+
+CLI (Interface Layer)
+        │
+        ▼
+Application Flows
+        │
+        ▼
+Core Domain
+        │
+        ▼
+Infrastructure
+
+### Estructura del proyecto
+
+epheminder/
+│
+├─ app/
+│   └─ CLI entrypoint
+│  
+├─ application/
+│   ├─ auth_flow.py
+│   ├─ reminder_flow.py
+│   └─ session_services.py
+│
+├─ core/
+│   ├─ authentication
+│   ├─ authorization (RBAC)
+│   ├─ security
+│   └─ reminder services
+│
+├─ infrastructure/
+│   ├─ repositories
+│   ├─ scheduler
+│   └─ storage
+│
+├─ tests/
+│
+└─ docs/
 
 ##  🧪Testing
 
 - **pytest --cov=.**. Ejecuta todos los tests y genera un reporte de cobertura de código.
-- 187 tests automatizados.
-- 94% de cobertura total.
+- 173 tests automatizados.
+- 91% de cobertura total.
 - Tests unitarios e integración.
 - Validación de flujos de autenticación, seguridad y expiración.
 
@@ -274,28 +302,56 @@ Its goal is to provide a simple and fast space for temporary notes, avoiding the
 ---
 ## ⚙Architecture
 
-Epheminder follows a layered architecture:
+Epheminder follows a layered architecture with a clear separation of concerns.
 
-core/
- ├─ authentication
- ├─ authorization (RBAC)
- ├─ domain services
- ├─ security
- └─ business logic
-
-infrastructure/
- ├─ repositories
- ├─ storage (SQLAlchemy)
- └─ schedulers (daemon threads)
-
-The CLI acts as the interface, while the business logic
+The CLI acts purely as the interface layer, while the business logic
 remains fully decoupled and reusable.
+
+Layer flow:
+
+CLI (Interface Layer)
+        │
+        ▼
+Application Flows
+        │
+        ▼
+Core Domain
+        │
+        ▼
+Infrastructure
+
+### Project Structure
+
+epheminder/
+│
+├─ app/
+│   └─ CLI entrypoint
+│
+├─ application/
+│   ├─ auth_flow.py
+│   ├─ reminder_flow.py
+│   └─ session_services.py
+│
+├─ core/
+│   ├─ authentication
+│   ├─ authorization (RBAC)
+│   ├─ security
+│   └─ reminder services
+│
+├─ infrastructure/
+│   ├─ repositories
+│   ├─ scheduler
+│   └─ storage
+│
+├─ tests/
+│
+└─ docs/
 
 ## 🧪Testing
 
 - **pytest --cov=.**. Runs all tests and generates a code coverage report.
-- 187 automated tests.
-- 94% total coverage.
+- 173 automated tests.
+- 91% total coverage.
 - Unit and integration tests.
 - Security and authentication flows fully tested.
 
