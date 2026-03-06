@@ -10,7 +10,7 @@ reset_attempts)
 from core.session import session_manager
 from core.security import decode_token
 from core.exceptions import AuthenticationRequiredError, RateLimitExceededError
-from core.cli_utils import safe_print
+from cli.cli_utils import safe_print
 import logging
 from functools import wraps
 from core.hash_utils import hash_sensitive
@@ -99,47 +99,3 @@ def register_rate_limited(user_param: str, ip_param: str):
 
         return wrapper
     return decorator
-
-def require_login(arg=None):
-
-    def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            db_session = kwargs.get("db_session")
-            if not db_session:
-                raise RuntimeError("db_session must be passed to CLI functions")
-            
-            user = session_manager.current_user
-            user_safe = hash_sensitive(user) if user else "unknown"
-
-            if not user:
-                logger.info(f"Unauthorized CLI access attempt: no user in session")
-                safe_print("Please login first.")
-                return
-
-            try:
-
-                decode_token(session_manager.access_token)
-
-            except AuthenticationRequiredError:
-
-                session_manager.clear()
-                logger.warning(f"Authentication required: session cleared for user {user_safe}")
-                safe_print("Please login again.")
-                return
-            
-            except Exception as e:
-
-                session_manager.clear()
-                logger.error(f"Unexpected login error for user {user_safe}: {e}")
-                safe_print("Invalid. Please login again.")
-                return
-
-            return func(*args, **kwargs)
-
-        return wrapper
-
-    if callable(arg):
-        return decorator(arg)
-    else:
-        return decorator

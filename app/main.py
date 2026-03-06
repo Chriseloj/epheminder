@@ -1,4 +1,4 @@
-from core.cli import run_cli
+from app.cli import run_cli
 from infrastructure.storage import Base, engine
 import logging
 
@@ -14,6 +14,7 @@ def configure_logging():
     )
 
 def main():
+    
     configure_logging()
     Base.metadata.create_all(engine)
     run_cli()

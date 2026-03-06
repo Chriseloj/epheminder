@@ -23,7 +23,6 @@ class ReminderError(Exception):
     def __init__(self, log_message: str = "An error occurred with the reminder"):
         super().__init__(log_message)
         self.public_message = "An unexpected error occurred while processing the reminder"
-        logger.warning(log_message)
         logger.error(log_message) 
 
 # ------------------------------
@@ -138,13 +137,6 @@ class InvalidUUIDError(ReminderError):
             log_message = f"Invalid UUID format detected: {hash_sensitive(uuid_str)}"
         super().__init__(log_message)
         self.public_message = "Identifier is invalid"
-
-# ------------------------------
-# CLI / App Control
-# ------------------------------
-class CLIExit(Exception):
-    """Raised to exit CLI"""
-    pass
 
 # ------------------------------
 # Optional: Rate limiting / login errors
