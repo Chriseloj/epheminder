@@ -1,6 +1,7 @@
 import pytest
 from unittest.mock import MagicMock, patch
-from core.decorators import rate_limited, register_rate_limited, require_login
+from core.decorators import rate_limited, register_rate_limited
+from cli.cli_decorators import require_login
 from core.exceptions import RateLimitExceededError, AuthenticationRequiredError
 from core.hash_utils import hash_sensitive
 from core.decorators import apply_backoff
@@ -94,15 +95,15 @@ def test_register_rate_limited_rate_exceeded_calls_backoff(monkeypatch):
 # --------------------------
 
 def test_require_login_happy_path(monkeypatch):
-    monkeypatch.setattr("core.decorators.session_manager", MagicMock(current_user="user1", access_token="token"))
-    monkeypatch.setattr("core.decorators.decode_token", lambda token: True)
+    monkeypatch.setattr("cli.cli_decorators.session_manager", MagicMock(current_user="user1", access_token="token"))
+    monkeypatch.setattr("cli.cli_decorators.decode_token", lambda token: True)
 
     wrapper = require_login()(dummy_func)
     result = wrapper(db_session=MagicMock())
     assert result == "success"
 
 def test_require_login_no_user(monkeypatch, caplog):
-    monkeypatch.setattr("core.decorators.session_manager", MagicMock(current_user=None))
+    monkeypatch.setattr("cli.cli_decorators.session_manager", MagicMock(current_user=None))
     wrapper = require_login()(dummy_func)
 
     with caplog.at_level("INFO"):
@@ -112,8 +113,8 @@ def test_require_login_no_user(monkeypatch, caplog):
 
 def test_require_login_authentication_required(monkeypatch, caplog):
     mock_session = MagicMock(current_user="user1", access_token="token")
-    monkeypatch.setattr("core.decorators.session_manager", mock_session)
-    monkeypatch.setattr("core.decorators.decode_token", lambda token: (_ for _ in ()).throw(AuthenticationRequiredError()))
+    monkeypatch.setattr("cli.cli_decorators.session_manager", mock_session)
+    monkeypatch.setattr("cli.cli_decorators.decode_token", lambda token: (_ for _ in ()).throw(AuthenticationRequiredError()))
 
     wrapper = require_login()(dummy_func)
     with caplog.at_level("WARNING"):
@@ -123,8 +124,8 @@ def test_require_login_authentication_required(monkeypatch, caplog):
 
 def test_require_login_invalid_token(monkeypatch, caplog):
     mock_session = MagicMock(current_user="user1", access_token="token")
-    monkeypatch.setattr("core.decorators.session_manager", mock_session)
-    monkeypatch.setattr("core.decorators.decode_token", lambda token: (_ for _ in ()).throw(Exception("fail")))
+    monkeypatch.setattr("cli.cli_decorators.session_manager", mock_session)
+    monkeypatch.setattr("cli.cli_decorators.decode_token", lambda token: (_ for _ in ()).throw(Exception("fail")))
 
     wrapper = require_login()(dummy_func)
     with caplog.at_level("ERROR"):
