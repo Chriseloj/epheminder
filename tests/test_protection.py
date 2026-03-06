@@ -70,7 +70,7 @@ def test_check_rate_limit_blocks_recent_attempt(db_session, sample_user):
     attempt = LoginAttemptDB(
         user_id=sample_user.id,
         ip=TEST_IP,
-        attempts=1,
+        attempts=MAX_ATTEMPTS, 
         updated_at=datetime.now(timezone.utc) - timedelta(seconds=5),
     )
     db_session.add(attempt)

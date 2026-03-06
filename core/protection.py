@@ -108,7 +108,12 @@ def check_rate_limit(user_id, ip, db_session: Session) -> None:
         )
     ).scalar_one_or_none()
 
-    if attempt and attempt.updated_at and (_now() - _aware(attempt.updated_at)).total_seconds() < RATE_LIMIT_SECONDS:
+    if (
+        attempt
+        and attempt.attempts >= MAX_ATTEMPTS
+        and attempt.updated_at
+        and (_now() - _aware(attempt.updated_at)).total_seconds() < RATE_LIMIT_SECONDS
+    ):
         raise AuthenticationRequiredError("Too many attempts, slow down")
 
 
@@ -134,6 +139,7 @@ def apply_backoff(user_id, ip, db_session: Session) -> None:
             ip=ip,
             attempts=1,
             lock_until=None,
+            updated_at=_now()
         )
         db_session.add(attempt)
     else:
