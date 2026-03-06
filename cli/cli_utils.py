@@ -1,6 +1,6 @@
 from core.hash_utils import hash_sensitive
 from datetime import datetime, timezone
-from core.exceptions import CLIExit
+from cli.cli_exceptions import CLIExit
 import logging
 
 logger = logging.getLogger(__name__)
