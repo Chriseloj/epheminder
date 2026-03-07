@@ -1,4 +1,11 @@
 from core.exceptions import InvalidPasswordError, AuthenticationRequiredError
+from core.protection import (check_register_rate_limit,
+apply_register_backoff,
+reset_register_attempts,
+check_lock,
+check_rate_limit,
+apply_backoff,
+reset_attempts)
 
 def register(username, password, db_session, session_service, registration_service):
     """
@@ -23,7 +30,7 @@ def register(username, password, db_session, session_service, registration_servi
             - 'user' (optional): User object if registration succeeded.
             - 'error' (optional): Error message if registration failed.
     """
-    from core.protection import check_register_rate_limit, apply_register_backoff, reset_register_attempts
+
     try:
         check_register_rate_limit(username, "127.0.0.1", db_session)
 
@@ -77,7 +84,7 @@ def login(username, password, db_session, session_service, authentication_servic
 
     # Check lock and rate-limit for existing user
     try:
-        from core.protection import check_lock, check_rate_limit
+
         check_lock(user.id, "127.0.0.1", db_session)
         check_rate_limit(user.id, "127.0.0.1", db_session)
     except AuthenticationRequiredError as e:
@@ -91,14 +98,12 @@ def login(username, password, db_session, session_service, authentication_servic
             ip="127.0.0.1",
             db_session=db_session
         )
-    except Exception:
+    except InvalidPasswordError:
         # Wrong password → increment attempts but do NOT show rate-limit message
-        from core.protection import apply_backoff
         apply_backoff(user.id, "127.0.0.1", db_session)
         return {"success": False, "error": "Invalid credentials."}
 
     # Successful login → reset attempts and set session
-    from core.protection import reset_attempts
     reset_attempts(user.id, "127.0.0.1", db_session)
 
     session_service.set_session(
