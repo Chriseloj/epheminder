@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select, delete
 import uuid
 from core.models import LoginAttemptDB, RegisterAttemptDB
+from core.hash_utils import hash_sensitive
 from core.exceptions import AuthenticationRequiredError
 from config import (
     MAX_ATTEMPTS,
@@ -152,8 +153,9 @@ def apply_backoff(user_id, ip, db_session: Session) -> None:
 
     if attempt.lock_until:
         logger.warning(
-            "User %s locked until %s",
-            user_id,
+            "User %s locked from IP %s until %s",
+            hash_sensitive(user_id),
+            hash_sensitive(ip),
             attempt.lock_until
         )
 
@@ -225,8 +227,9 @@ def apply_global_backoff(user_id, ip, db_session: Session) -> None:
 
     if attempt.lock_until:
         logger.warning(
-            "User %s globally locked until %s",
-            user_id,
+            "User %s globally locked from IP %s until %s",
+            hash_sensitive(user_id),
+            hash_sensitive(ip),
             attempt.lock_until
         )
 

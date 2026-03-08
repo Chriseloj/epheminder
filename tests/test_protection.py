@@ -363,7 +363,7 @@ def test_apply_backoff_logs_when_locked(db_session, sample_user, caplog):
     for _ in range(MAX_ATTEMPTS):
         apply_backoff(sample_user.id, TEST_IP, db_session)
 
-    assert "locked until" in caplog.text.lower()
+    assert "locked from ip" in caplog.text.lower()
 
 def test_apply_global_backoff_logs_when_locked(db_session, sample_user, caplog):
     for _ in range(MAX_ATTEMPTS):
