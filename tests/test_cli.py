@@ -16,7 +16,6 @@ InvalidExpirationError,
 PermissionDeniedError)
 
 from datetime import datetime, timezone, timedelta
-from unittest.mock import MagicMock
 
 # -----------------------------
 # Helpers
@@ -97,13 +96,6 @@ def test_login_success():
 # AUTH FLOW - BAD CASES
 # -----------------------------
 
-def make_fake_login_attempt(attempts=0, lock_until=None):
-
-    attempt = MagicMock()
-    attempt.attempts = attempts
-    attempt.lock_until = lock_until
-    return attempt
-
 def test_register_invalid_password():
     
     registration_service = MagicMock()
@@ -111,9 +103,9 @@ def test_register_invalid_password():
 
     db_session = MagicMock()
 
-    with patch("core.protection.check_register_rate_limit") as mock_check, \
-         patch("core.protection.apply_register_backoff") as mock_backoff, \
-         patch("core.protection.reset_register_attempts") as mock_reset:
+    with patch("application.auth_flow.check_register_rate_limit") as mock_check, \
+         patch("application.auth_flow.apply_register_backoff") as mock_backoff, \
+         patch("application.auth_flow.reset_register_attempts") as mock_reset:
 
         mock_check.return_value = None
 
