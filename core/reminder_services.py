@@ -97,11 +97,10 @@ class ReminderService:
         if len(text) > MAX_TEXT_LENGTH:
             raise ReminderTextTooLongError(len(text), MAX_TEXT_LENGTH)
 
-        reminder_id = str(uuid.uuid4())
         now = datetime.now(timezone.utc)
         expires_at = now + timedelta(minutes=expires_in_minutes)
 
-        reminder_id = uuid.uuid4()  # without str()
+        reminder_id = uuid.uuid4()
         reminder = ReminderDB(
             id=reminder_id,
             owner_id=user.id,  # user.id is UUID
