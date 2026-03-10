@@ -4,6 +4,7 @@ from infrastructure.storage import SessionLocal
 from infrastructure.repositories import ReminderRepository
 from core.reminder_services import ReminderService
 from core.models import RefreshTokenDB
+from core.token_services import TokenService
 from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
@@ -83,11 +84,7 @@ class TokenScheduler:
         while not self._stop_event.is_set():
             session = SessionLocal()
             try:
-                deleted = session.query(RefreshTokenDB)\
-                    .filter(RefreshTokenDB.expires_at < datetime.now(timezone.utc))\
-                    .delete()
-                session.commit()
-
+                deleted = TokenService.cleanup_expired_tokens(session=session)
                 logger.info(f"Scheduler deleted {deleted} expired refresh tokens.")
 
             except Exception:
@@ -98,9 +95,3 @@ class TokenScheduler:
             
             # wait for interval or stop
             self._stop_event.wait(self.interval_seconds)
-
-    @staticmethod
-    def cleanup_expired_tokens(db_session):
-        now = datetime.now(timezone.utc)
-        db_session.query(RefreshTokenDB).filter(RefreshTokenDB.expires_at < now).delete()
-        db_session.commit()
