@@ -50,6 +50,13 @@ class ReminderService:
             uuid.UUID(id_str)
         except ValueError:
             raise InvalidUUIDError(id_str)
+
+    @staticmethod
+    def _check_max_reminders(user, reminder_repo):
+        # Check maximum reminders per user
+        current_count = len(ReminderService.list_reminders(user, reminder_repo=reminder_repo))
+        if current_count >= MAX_REMINDERS_PER_USER:
+            raise MaxRemindersReachedError(MAX_REMINDERS_PER_USER)
     
     @staticmethod
     def create_reminder(user: "UserDB", text: str, amount: int, unit: str, reminder_repo=None) -> "ReminderDB":
@@ -84,11 +91,8 @@ class ReminderService:
 
         if reminder_repo is None:
             raise MissingDataError()
-
-        # Check maximum reminders per user
-        current_count = len(ReminderService.list_reminders(user, reminder_repo=reminder_repo))
-        if current_count >= MAX_REMINDERS_PER_USER:
-            raise MaxRemindersReachedError(MAX_REMINDERS_PER_USER)
+        
+        ReminderService._check_max_reminders(user, reminder_repo)
 
         authorize(user, "create", resource_owner_id=user.id)
 
