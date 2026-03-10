@@ -1,8 +1,6 @@
 from sqlalchemy.orm import Session
 from core.models import UserDB, ReminderDB
 from datetime import datetime, timezone
-from config import MAX_REMINDERS_PER_USER
-from core.exceptions import MaxRemindersReachedError
 
 class UserRepository:
     def __init__(self, db: Session):
@@ -31,16 +29,21 @@ class ReminderRepository:
         self.db = db
 
     def add(self, reminder: ReminderDB):
-        # 🔹 Validation: count actives reminders before add
-        active_count = self.db.query(ReminderDB).filter(
-            ReminderDB.owner_id == reminder.owner_id,
-            ReminderDB.expires_at > datetime.now(timezone.utc)
-        ).count()
+        """
+        Persist a new reminder or update an existing one in the database.
 
-        if active_count >= MAX_REMINDERS_PER_USER:
-            raise MaxRemindersReachedError(MAX_REMINDERS_PER_USER)
+        This method handles saving the reminder object to the database and 
+        refreshing it after commit. It does NOT enforce business rules 
+        such as maximum reminders per user or text length validation — 
+        those are handled by the ReminderService.
 
-        # 🔹 Save if not surpass limit
+        Args:
+            reminder (ReminderDB): The reminder object to be persisted.
+
+        Returns:
+            ReminderDB: The persisted reminder object with updated state 
+                        from the database (e.g., timestamps, IDs).
+    """
         self.db.add(reminder)
         self.db.commit()
         self.db.refresh(reminder)
@@ -56,9 +59,13 @@ class ReminderRepository:
         self.db.delete(reminder)
         self.db.commit()
 
-    def delete_expired(self):
+    def delete_expired(self, now=None):
     
-        expired = self.db.query(ReminderDB).filter(ReminderDB.expires_at <= datetime.now(timezone.utc)).all()
+        if now is None:
+            now = datetime.now(timezone.utc)
+
+        expired = self.db.query(ReminderDB).filter(ReminderDB.expires_at <= now).all()
+    
         for r in expired:
             self.db.delete(r)
         self.db.commit()
