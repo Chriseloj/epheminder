@@ -2,6 +2,7 @@ import pytest
 from unittest.mock import MagicMock
 from infrastructure.scheduler import ReminderScheduler, TokenScheduler
 from unittest.mock import MagicMock, patch
+from core.token_services import TokenService
 
 # ---------------------------
 # Test without expired
@@ -130,6 +131,6 @@ def test_cleanup_expired_tokens():
     mock_session.query.return_value = mock_query
     mock_query.filter.return_value = mock_filter
 
-    TokenScheduler.cleanup_expired_tokens(mock_session)
+    TokenService.cleanup_expired_tokens(mock_session)
 
     mock_session.commit.assert_called_once()
