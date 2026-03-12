@@ -22,18 +22,21 @@ def logout(refresh_token: str, access_token: str, db_session: Session):
             if stored_token:
                 stored_token.revoked = True
                 db_session.commit() 
-                logger.info(f"Refresh token revoked successfully.")
+                logger.info("Refresh token revoked successfully.")
             else:
-                logger.warning(f"Refresh token not found or already revoked.")
+                logger.warning("Refresh token not found or already revoked.")
 
         # access_token
         if access_token:
             revoke_access_token(access_token, db_session=db_session)
-            logger.info(f"Access token revoked successfully.")
+            logger.info("Access token revoked successfully.")
         
         return True
 
     except Exception as e:
-        logger.error(f"Error during logout: {str(e)}")
+        logger.error(
+            "Error during logout: %s",
+            str(e)
+        )
         db_session.rollback()  # Error, return session
         return False

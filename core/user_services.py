@@ -76,7 +76,12 @@ class UserService:
         # Save user
         repo.add(user)
 
-        logger.info(f"User created | Username={hash_sensitive(username)} | Role={user.role} | ID={hash_sensitive(user_id)}")
+        logger.info(
+            "user_service | User created | Username= %s | Role= %s | ID= %s",
+            hash_sensitive(username),
+            user.role,
+            hash_sensitive(user_id)
+        )
 
         return user
         

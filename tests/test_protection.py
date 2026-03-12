@@ -9,7 +9,7 @@ from core.protection import (
     check_global_attempts,
     apply_global_backoff,
 )
-from core.exceptions import AuthenticationRequiredError
+from core.exceptions import AuthenticationRequiredError, RateLimitExceededError
 from core.models import LoginAttemptDB
 from config import RATE_LIMIT_SECONDS, MAX_ATTEMPTS, GLOBAL_MAX_ATTEMPTS, MAX_LOCK_MINUTES, MAX_REGISTER_ATTEMPTS
 
@@ -363,10 +363,13 @@ def test_apply_backoff_logs_when_locked(db_session, sample_user, caplog):
     for _ in range(MAX_ATTEMPTS):
         apply_backoff(sample_user.id, TEST_IP, db_session)
 
-    assert "locked from ip" in caplog.text.lower()
+    assert "login_failed_lock_applied" in caplog.text.lower()
 
 def test_apply_global_backoff_logs_when_locked(db_session, sample_user, caplog):
-    for _ in range(MAX_ATTEMPTS):
+    for _ in range(MAX_ATTEMPTS - 1):
         apply_global_backoff(sample_user.id, TEST_IP, db_session)
 
-    assert "globally locked" in caplog.text.lower()
+    with pytest.raises(RateLimitExceededError):
+        apply_global_backoff(sample_user.id, TEST_IP, db_session)
+
+    assert "global_login_rate_limit_exceeded" in caplog.text.lower()

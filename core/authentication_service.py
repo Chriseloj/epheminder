@@ -67,19 +67,33 @@ class AuthenticationService:
         if not password:
             raise MissingDataError("Invalid password")
         
-        try: 
+        try:
             user = authenticate(username, password, db_session=db_session, ip=ip)
+            user_hash = hash_sensitive(user.id)
+            ip_hash = hash_sensitive(ip)
+            
             logger.info(
-            f"login_success | user_hash={hash_sensitive(user.id)} | ip={hash_sensitive(ip)} | ts={datetime.now(timezone.utc).isoformat()}"
-        )
+                "login_success | user_hash=%s | ip=%s",
+                user_hash,
+                ip_hash,
+            
+            )
+
         except AuthenticationRequiredError:
+            ip_hash = hash_sensitive(ip)
+            
             logger.warning(
-                f"login_failed | ip={hash_sensitive(ip)} | reason=auth_failed | ts={datetime.now(timezone.utc).isoformat()}"
+                "login_failed | ip=%s | reason=auth_failed",
+                ip_hash
             )
             raise
-        except Exception as e:
-            logger.error(
-                f"login_failed | ip={hash_sensitive(ip)} | reason={type(e).__name__} | ts={datetime.now(timezone.utc).isoformat()}"
+        except Exception:
+            ip_hash = hash_sensitive(ip)
+            
+
+            logger.exception(
+                "login_failed | ip=%s | reason=unexpected_error",
+                ip_hash
             )
             raise
 
@@ -88,7 +102,7 @@ class AuthenticationService:
         access_token = create_access_token(user)
 
         # 2️⃣ Refresh token
-        expire = datetime.now(timezone.utc) + timedelta(REFRESH_TOKEN_EXPIRE_DAYS)
+        expire = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
         token_value = uuid.uuid4().hex  # token string hexadecimal
         token_hash = hash_sensitive(token_value)  # hash 
 

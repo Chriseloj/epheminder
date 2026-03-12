@@ -5,7 +5,7 @@ from sqlalchemy import select, delete
 import uuid
 from core.models import LoginAttemptDB, RegisterAttemptDB
 from core.hash_utils import hash_sensitive
-from core.exceptions import AuthenticationRequiredError
+from core.exceptions import AuthenticationRequiredError, RateLimitExceededError
 from config import (
     MAX_ATTEMPTS,
     RATE_LIMIT_SECONDS,
@@ -153,7 +153,7 @@ def apply_backoff(user_id, ip, db_session: Session) -> None:
 
     if attempt.lock_until:
         logger.warning(
-            "User %s locked from IP %s until %s",
+            "login_failed_lock_applied | user_hash=%s | ip=%s | lock_until=%s",
             hash_sensitive(user_id),
             hash_sensitive(ip),
             attempt.lock_until
@@ -227,12 +227,12 @@ def apply_global_backoff(user_id, ip, db_session: Session) -> None:
 
     if attempt.lock_until:
         logger.warning(
-            "User %s globally locked from IP %s until %s",
+            "global_login_rate_limit_exceeded | user_hash=%s | ip=%s | lock_until=%s",
             hash_sensitive(user_id),
             hash_sensitive(ip),
             attempt.lock_until
         )
-
+        raise RateLimitExceededError("Too many login attempts. Try later.")
 # ============================================================
 # REGISTER
 # ============================================================
@@ -248,7 +248,12 @@ def check_register_rate_limit(username: str, ip: str, db_session):
 
     if attempt:
         if attempt.lock_until and attempt.lock_until > now:
-            raise Exception("Too many registration attempts. Try later.")
+            logger.warning(
+                "register_rate_limit_exceeded | user_hash=%s | ip=%s",
+                hash_sensitive(username),
+                hash_sensitive(ip)
+            )
+            raise RateLimitExceededError("Too many registration attempts. Try later.")
     else:
         attempt = RegisterAttemptDB(
             id=uuid.uuid4(),

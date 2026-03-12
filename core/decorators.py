@@ -7,10 +7,7 @@ reset_register_attempts,
 check_rate_limit,
 apply_backoff,
 reset_attempts)
-from core.session import session_manager
-from core.security import decode_token
-from core.exceptions import AuthenticationRequiredError, RateLimitExceededError
-from cli.cli_utils import safe_print
+from core.exceptions import RateLimitExceededError
 import logging
 from functools import wraps
 from core.hash_utils import hash_sensitive
@@ -39,7 +36,11 @@ def rate_limited(user_param: str, ip_param: str):
 
             safe_user = hash_sensitive(user_id)
             safe_ip = hash_sensitive(str(ip)) if ip else "unknown"
-            logger.info(f"Rate-limit attempt for user {safe_user} | ip {safe_ip}")
+            logger.info(
+                "Rate-limit attempt for user %s | ip %s",
+                safe_user,
+                safe_ip
+            )
 
             try:
 
@@ -48,7 +49,12 @@ def rate_limited(user_param: str, ip_param: str):
             except RateLimitExceededError as e:
                 safe_user = hash_sensitive(user_id)
                 safe_ip = hash_sensitive(str(ip)) if ip else "unknown"
-                logger.warning(f"Apply backoff to user {safe_user} | ip {safe_ip}: {e}")
+                logger.warning(
+                    "Apply backoff to user %s | ip %s: %s",
+                    safe_user,
+                    safe_ip,
+                    str(e)
+                )
                 apply_backoff(user_id, ip, db_session=db_session)
                 raise
 
@@ -56,7 +62,11 @@ def rate_limited(user_param: str, ip_param: str):
                 raise
             else:
                 reset_attempts(user_id, ip, db_session=db_session)
-                logger.info(f"Reset attempts for user {safe_user} | ip {safe_ip}")
+                logger.info(
+                    "Reset attempts for user %s | ip %s",
+                    safe_user,
+                    safe_ip
+                )
                 return result
         return wrapper
     return decorator
@@ -76,7 +86,11 @@ def register_rate_limited(user_param: str, ip_param: str):
 
             safe_user = hash_sensitive(username)
             safe_ip = hash_sensitive(str(ip)) if ip else "unknown"
-            logger.info(f"Rate-limit attempt for user {safe_user} | ip {safe_ip}")
+            logger.info(
+                "Rate-limit attempt for user %s | ip %s",
+                safe_user,
+                safe_ip
+            )
 
             try:
                 result = func(*args, **kwargs)
@@ -85,16 +99,29 @@ def register_rate_limited(user_param: str, ip_param: str):
 
                 safe_user = hash_sensitive(username)
                 safe_ip = hash_sensitive(str(ip)) if ip else "unknown"
-                logger.warning(f"Register backoff applied to user {safe_user} | ip {safe_ip}: {e}")
+                logger.warning(
+                    "Register backoff applied to user %s | ip %s: %s",
+                    safe_user,
+                    safe_ip,
+                    str(e)
+                )
                 apply_register_backoff(username, ip, db_session=db_session)
                 raise
 
                 
             except Exception:
+                logger.debug(
+                    "Unexpected error in rate_limited wrapper",
+                    exc_info=True
+                )
                 raise
             else:
                 reset_register_attempts(username, ip, db_session)
-                logger.info(f"Reset attempts for user {safe_user} | ip {safe_ip}")
+                logger.info(
+                    "Reset attempts for user %s | ip %s",
+                    safe_user,
+                    safe_ip
+                )
                 return result
 
         return wrapper

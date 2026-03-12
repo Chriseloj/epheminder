@@ -36,7 +36,11 @@ class ReminderService:
         authorize(user, "read", resource_owner_id=reminder.owner_id)
 
         # Logging for auditing purposes
-        logger.info(f"Reminder read | Role={user.role_enum.name} | ReminderID={reminder.id}")
+        logger.info(
+            "Reminder read | Role= %s | ReminderID= %s",
+            user.role_enum.name,
+            reminder.id
+        )
         
         return reminder
 
@@ -116,7 +120,11 @@ class ReminderService:
 
         reminder_repo.add(reminder)
 
-        logger.info(f"Reminder created | Role={user.role_enum.name} | ReminderID={reminder.id}")
+        logger.info(
+            "Reminder created | Role= %s | ReminderID= %s",
+            user.role_enum.name,
+            reminder.id
+        )
 
         return reminder
     
@@ -150,7 +158,11 @@ class ReminderService:
         authorize(user, "read", resource_owner_id=reminder.owner_id)
 
         # 4️⃣ Logging for audit purposes
-        logger.info(f"Reminder read | Role={user.role_enum.name} | ReminderID={reminder.id}")
+        logger.info(
+            "Reminder read | Role= %s | ReminderID= %s",
+            user.role_enum.name, 
+            reminder.id
+        )
 
         return reminder
     
@@ -210,7 +222,11 @@ class ReminderService:
         reminder_repo.add(reminder)  # add() will commit and refresh
 
         # 7️⃣ Logging for audit
-        logger.info(f"Reminder updated | Role={user.role_enum.name} | ReminderID={reminder.id}")
+        logger.info(
+            "Reminder updated | Role= %s | ReminderID= %s",
+            user.role_enum.name,
+            reminder.id
+        )
 
         return reminder
     
@@ -256,7 +272,11 @@ class ReminderService:
         reminder_repo.delete(reminder)
 
         # 5️⃣ Logging for audit
-        logger.info(f"Reminder deleted | Role={user.role_enum.name} | ReminderID={reminder.id}")
+        logger.info(
+            "Reminder deleted | Role= %s | ReminderID= %s",
+            user.role_enum.name,
+            reminder.id
+        )
 
         return True
     
@@ -284,7 +304,10 @@ class ReminderService:
 
         # Log generic info without sensitive data
         if count:
-            logger.info(f"Auto-deleted {count} expired reminders.")
+            logger.info(
+                "Auto-deleted reminders | count= %s",
+                count
+            )
 
         return expired
 
