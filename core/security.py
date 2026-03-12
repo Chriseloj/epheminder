@@ -67,7 +67,9 @@ def authorize(user, action: str, resource_owner_id=None):
 
     except ValueError as e:
         logger.error(
-            f"invalid_role | user_hash={hash_sensitive(getattr(user, 'id', 'unknown'))} | reason={str(e)} | ts={datetime.now(timezone.utc).isoformat()}"
+            "invalid_role | user_hash=%s | reason=%s",
+            hash_sensitive(getattr(user, "id", "unknown")),
+            str(e),
         )
         raise AuthenticationRequiredError("Invalid user role")
     
@@ -76,7 +78,10 @@ def authorize(user, action: str, resource_owner_id=None):
     # Permission check
     if not has_permission(role_enum, action, own=own):
         logger.warning(
-            f"permission_denied | user_hash={hash_sensitive(user.id)} | action={action} | ts={datetime.now(timezone.utc).isoformat()}"
+            "permission_denied | user_hash=%s | action=%s | resource_owner_id=%s",
+            hash_sensitive(user.id),
+            action,
+            getattr(resource_owner_id, 'hex', resource_owner_id),
         )
         raise PermissionDeniedError(role_enum.name, action)
 

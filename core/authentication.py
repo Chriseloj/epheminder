@@ -45,11 +45,18 @@ def authenticate(username: str, password: str, db_session=None, ip: str = None) 
     
     user = repo.get_by_username(username)
 
+    username_hash = hash_sensitive(username)
+    ip_hash = hash_sensitive(ip)
+
     if user is None:
-        # ✅  appy backoff UUID temporal
+        # ✅  apply backoff UUID temporal
         fake_user_id = uuid.uuid4()
         apply_backoff(fake_user_id, ip, db_session=db_session)
-        logger.warning(f"Failed login attempt for {hash_sensitive(username)} from IP {hash_sensitive(ip)}")
+        logger.warning(
+            "login_failed | user_hash=%s | ip=%s | reason=invalid_credentials",
+            username_hash,
+            ip_hash,
+        )
         raise AuthenticationRequiredError("Invalid credentials.")
 
     user_id = user.id
@@ -61,11 +68,19 @@ def authenticate(username: str, password: str, db_session=None, ip: str = None) 
     # 2️⃣ Verify password and active status 
     if not user.is_active or not verify_password(password, getattr(user, "password_hash", "")):
         apply_backoff(user_id, ip, db_session=db_session)
-        logger.warning(f"Failed login attempt for {hash_sensitive(username)} from IP {hash_sensitive(ip)}")
+        logger.warning(
+            "login_failed | user_hash=%s | ip=%s | reason=invalid_credentials",
+            username_hash,
+            ip_hash,
+        )
         raise AuthenticationRequiredError("Invalid credentials.")
 
     # 3️⃣ Login successful: delete attempts previouss completly
     reset_attempts(user_id, ip, db_session=db_session)
-    logger.info(f"User {hash_sensitive(username)} authenticated successfully from IP {hash_sensitive(ip)}")
+    logger.info(
+        "login_success | user_hash=%s | ip=%s",
+        username_hash,
+        ip_hash,
+    )
 
     return user

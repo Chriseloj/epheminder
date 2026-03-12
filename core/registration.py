@@ -30,6 +30,9 @@ class RegistrationService:
             db_session=db_session
         )
 
-        logger.info(f"Registered user | user_hash={hash_sensitive(username)}")
+        logger.info(
+            "Registered user | user_hash= %s",
+            hash_sensitive(username)
+        )
 
         return user

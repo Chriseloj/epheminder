@@ -3,7 +3,6 @@ from core.session import session_manager
 from core.security import decode_token
 from core.exceptions import AuthenticationRequiredError
 from cli.cli_utils import safe_print
-from functools import wraps
 from core.hash_utils import hash_sensitive
 import logging
 
@@ -31,7 +30,10 @@ def require_login(func=None):
             user_safe = hash_sensitive(user) if user else "unknown"
 
             if not user:
-                logger.info("Unauthorized CLI access attempt: no user in session")
+                logger.info(
+                    "Unauthorized CLI access attempt (user=%s)",
+                    user_safe
+                )
                 safe_print("Please login first.")
                 return
 
@@ -39,12 +41,18 @@ def require_login(func=None):
                 decode_token(session_manager.access_token)
             except AuthenticationRequiredError:
                 session_manager.clear()
-                logger.warning(f"Authentication required: session cleared for user {user_safe}")
+                logger.warning(
+                    "Authentication required: session cleared for user %s",
+                    user_safe
+                )
                 safe_print("Please login again.")
                 return
-            except Exception as e:
+            except Exception:
                 session_manager.clear()
-                logger.error(f"Unexpected login error for user {user_safe}: {e}")
+                logger.exception(
+                    "Unexpected login error for user %s",
+                    user_safe
+                )
                 safe_print("Invalid session. Please login again.")
                 return
 

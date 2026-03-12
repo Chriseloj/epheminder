@@ -52,7 +52,10 @@ class ReminderScheduler:
                 if not expired:
                     logger.info("Scheduler ran: no expired reminders found.")
                 else:
-                    logger.info(f"Scheduler deleted {len(expired)} expired reminders.")
+                    logger.info(
+                        "Scheduler deleted %s expired reminders.",
+                        len(expired)
+                    )
             except Exception:
                 logger.exception(
                     "Scheduler _run loop failed while deleting expired reminders."
@@ -85,7 +88,10 @@ class TokenScheduler:
             session = SessionLocal()
             try:
                 deleted = TokenService.cleanup_expired_tokens(session=session)
-                logger.info(f"Scheduler deleted {deleted} expired refresh tokens.")
+                logger.info(
+                    "Scheduler deleted  %s expired refresh tokens.",
+                    deleted
+                )
 
             except Exception:
                 logger.exception("TokenScheduler failed while cleaning tokens.")

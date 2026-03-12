@@ -29,5 +29,8 @@ class TokenService:
                          .delete()
         session.commit()
 
-        logger.info(f"Deleted {deleted} expired refresh tokens")
+        logger.info(
+            "token_service | Deleted %s expired refresh tokens",
+            deleted
+        )
         return deleted

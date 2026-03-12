@@ -67,7 +67,9 @@ def refresh(refresh_token: str, db_session):
         db_session.commit()
 
         logger.info(
-            f"Refresh token rotated | user_hash={hash_sensitive(stored_token.user.id)} | old_token={token_hash}"
+            "Refresh token rotated | user_hash= %s | old_token= %s ",
+            hash_sensitive(stored_token.user.id),
+            token_hash
         )
 
         return {
@@ -80,5 +82,8 @@ def refresh(refresh_token: str, db_session):
         raise
     except Exception as e:
         db_session.rollback()
-        logger.exception(f"Unexpected error during token refresh: {str(e)}")
+        logger.exception(
+            "Unexpected error during token refresh: %s",
+            str(e)
+        )
         raise AuthenticationRequiredError("An error occurred during token refresh")
