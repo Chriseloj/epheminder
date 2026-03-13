@@ -159,18 +159,46 @@ def run_cli():
                         )
 
                     elif action_func.__name__ == "delete_reminder":
-                        """
-                        CLI handler for deleting a reminder.
-                        Prompts the user for a reminder ID and validates it as a UUID.
-                        """
+
                         if not session_service.logged_in:
                             safe_print("You must be logged in.")
                             continue
 
-                        reminder_id_input = safe_input("Reminder ID to delete: ")
+                        # Show reminders before asking for ID
+                        list_result = list_reminders(
+                            user=session_service.current_user,
+                            reminder_repo=reminder_repo,
+                        )
+
+                        if not list_result.get("success"):
+                            safe_print(f"Error: {list_result.get('error')}")
+                            continue
+
+                        reminders = list_result.get("reminders", [])
+
+                        if not reminders:
+                            safe_print("No active reminders.")
+                            continue
+
+                        safe_print("\nYour reminders:\n")
+
+                        reminders = sorted(reminders, key=lambda r: r["expires_at"])
+
+                        for r in reminders:
+                            safe_print(
+                                f"- ID: {r['id']} | Text: {r['text']} | Expires: {r['expires_at']}"
+                            )
+
+                        reminder_id_input = safe_input("\nReminder ID to delete (ENTER to cancel): ").strip()
+
+                        if not reminder_id_input:
+                            safe_print("Cancelled.")
+                            continue
 
                         try:
+                             
                             reminder_id = str(uuid.UUID(reminder_id_input))
+    
                         except ValueError:
                             safe_print("Invalid reminder ID format.")
                             continue
