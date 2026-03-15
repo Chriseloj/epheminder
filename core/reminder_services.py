@@ -352,27 +352,54 @@ class ReminderService:
     @staticmethod
     def parse_expiration(amount: int, unit: str, max_minutes: int = MAX_EXPIRATION_MINUTES) -> int:
         """
-        Convert a time amount and unit to total minutes.
+        Convert expiration amount and unit to minutes.
 
-        - unit: "minutes", "hours", or "days" (case-insensitive)
-        - amount must be positive and within max_minutes
-        - Raises InvalidExpirationError for invalid units or out-of-range values
+        Validation is performed in the same unit provided by the user
+        to produce clearer error messages.
         """
 
-        if amount < 1:
-            raise InvalidExpirationError(amount, max_minutes, log_message=f"Expiration must be at least 1 {unit}")
-
         unit = unit.lower()
-        if unit == "minutes":
-            minutes = amount
-        elif unit == "hours":
-            minutes = amount * 60
-        elif unit == "days":
-            minutes = amount * 24 * 60
-        else:
-            raise InvalidExpirationError(amount, max_minutes, log_message=f"Invalid unit '{unit}'")
 
-        if minutes > max_minutes:
-            raise InvalidExpirationError(minutes, max_minutes)
+        limits = {
+            "minutes": {
+                "min": 1,
+                "max": max_minutes,
+                "multiplier": 1
+            },
+            "hours": {
+                "min": 1,
+                "max": max_minutes // 60,
+                "multiplier": 60
+            },
+            "days": {
+                "min": 1,
+                "max": max_minutes // 1440,
+                "multiplier": 1440
+            }
+        }
 
-        return minutes
+        if unit not in limits:
+            raise InvalidExpirationError(
+                amount,
+                max_minutes,
+                log_message=f"Invalid unit '{unit}'"
+            )
+
+        min_value = limits[unit]["min"]
+        max_value = limits[unit]["max"]
+        multiplier = limits[unit]["multiplier"]
+
+        if amount < min_value or amount > max_value:
+            raise InvalidExpirationError(
+                amount,
+                max_value,
+                log_message=f"{unit} must be between {min_value} and {max_value}"
+            )
+
+        return amount * multiplier
+    
+EXPIRATION_RULES = {
+    "minutes": (1, MAX_EXPIRATION_MINUTES, 1),
+    "hours": (1, MAX_EXPIRATION_MINUTES // 60, 60),
+    "days": (1, MAX_EXPIRATION_MINUTES // 1440, 1440),
+}
