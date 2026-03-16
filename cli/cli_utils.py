@@ -52,7 +52,25 @@ def log_event(level, action, user_id=None, ip=None, extra_info=None):
 def safe_print(msg):
     print(msg, flush=True)
 
+def print_section(title: str):
+    """
+    Print a visual section header in the CLI
+    to indicate the current operation.
+    """
+    safe_print(f"\n=== {title.upper()} ===\n")
+
 def current_user_id(current_user=None):
     if current_user is None:
         return None
     return getattr(current_user, "id", None)
+
+def normalize_time_unit(unit: str) -> str:
+    unit = unit.lower().strip()
+
+    shortcuts = {
+        "m": "minutes",
+        "h": "hours",
+        "d": "days",
+    }
+
+    return shortcuts.get(unit, unit)

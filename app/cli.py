@@ -3,16 +3,19 @@ from application.reminder_flow import create_reminder, list_reminders, delete_re
 from application.session_services import SessionService
 
 from cli.cli_exceptions import CLIExit
-from cli.cli_utils import safe_print, safe_input, log_event
+from cli.cli_utils import safe_print, safe_input, log_event, print_section, normalize_time_unit
+from cli.cli_decorators import require_login
 
 from infrastructure.storage import SessionLocal
 from infrastructure.repositories import ReminderRepository
 
 from core.registration import RegistrationService
+from core.exceptions import InvalidExpirationError
 from core.authentication_service import AuthenticationService
 from core.user_services import UserService
-from cli.cli_decorators import require_login
 from core.session import session_manager as core_session_manager
+
+from config import MENU_WIDTH
 
 import uuid
 
@@ -60,9 +63,9 @@ def run_cli():
             # ------------------------------
             # Print Menu
             # ------------------------------
-            safe_print("\n" + "=" * 30)
-            safe_print("      Epheminder APP CLI")
-            safe_print("=" * 30)
+            safe_print("\n" + "=" * MENU_WIDTH)
+            safe_print("Epheminder".center(MENU_WIDTH))
+            safe_print("=" * MENU_WIDTH)
 
             for option, (description, _) in sorted(menu.items()):
                 safe_print(f"{option}. {description}")
@@ -91,6 +94,7 @@ def run_cli():
                 try:
 
                     if action_func.__name__ == "register":
+                        print_section("Register")
                         username = safe_input("Username: ")
                         password = safe_input("Password: ")
                         result = action_func(
@@ -102,6 +106,7 @@ def run_cli():
                         )
 
                     elif action_func.__name__ == "login":
+                        print_section("Login")
                         username = safe_input("Username: ")
                         password = safe_input("Password: ")
                         result = action_func(
@@ -114,6 +119,7 @@ def run_cli():
                         )
 
                     elif action_func.__name__ == "create_reminder":
+                        print_section("Create Reminder")
     
                         if not session_service.logged_in:
                             safe_print("You must be logged in.")
@@ -136,20 +142,29 @@ def run_cli():
                             safe_print("Error: Expiration amount must be a number.")
                             continue
 
-                        unit = safe_input("Expiration unit (minutes/hours/days): ").strip().lower()
-                        if unit not in ["minutes", "hours", "days"]:
-                            safe_print(f"Error: Invalid unit '{unit}'. Must be minutes, hours, or days.")
-                            continue
-
-                        result = action_func(
-                            user=session_service.current_user,
-                            text=text,
-                            amount=amount,
-                            unit=unit,
-                            reminder_repo=reminder_repo,
+                        unit = normalize_time_unit(
+                            safe_input("Expiration unit (m/h/d or minutes/hours/days): ").lower()
                         )
 
+                        try:
+
+                            result = action_func(
+                                user=session_service.current_user,
+                                text=text,
+                                amount=amount,
+                                unit=unit,
+                                reminder_repo=reminder_repo,
+                            )
+                        except InvalidExpirationError as e:
+                            safe_print(f"Error: {e}")
+                        
+                        except Exception as e:
+                            safe_print("Error: Action failed.")
+                            log_event("error", "cli_action_failed", extra_info=str(e))
+
                     elif action_func.__name__ == "list_reminders":
+                        print_section("List Reminders")
+
                         if not session_service.logged_in:
                             safe_print("You must be logged in.")
                             continue
@@ -159,6 +174,7 @@ def run_cli():
                         )
 
                     elif action_func.__name__ == "delete_reminder":
+                        print_section("Delete Reminder")
 
                         if not session_service.logged_in:
                             safe_print("You must be logged in.")

@@ -49,6 +49,16 @@ BACKOFF_MULTIPLIER = int(os.getenv("BACKOFF_MULTIPLIER", 2))           # Exponen
 KEY_TTL_SECONDS = int(os.getenv("KEY_TTL_SECONDS", 24 * 60 * 60 ))  # key TTL (24h)
 GLOBAL_MAX_ATTEMPTS = int(os.getenv("GLOBAL_MAX_ATTEMPTS", MAX_ATTEMPTS * 3))  # Global attempts limit across IPs
 
+# ===============================
+# Register
+# ===============================
 
 MAX_REGISTER_ATTEMPTS = 5
 REGISTER_LOCK_MINUTES = 15
+
+
+# ===============================
+# Menu Width
+# ===============================
+
+MENU_WIDTH = 30
