@@ -182,9 +182,35 @@ def decode_token(token: str, expected_type: str = None) -> dict:
     if expected_type is not None:
         verify_token_type(payload, expected_type)
 
+    # Check revocation
+    jti = payload.get("jti")
+    if jti and is_token_revoked(jti):
+        raise AuthenticationRequiredError("Token has been revoked")
+
     return payload
 
 
 def verify_token_type(payload: dict, expected_type: str):
     if payload.get("type") != expected_type:
         raise AuthenticationRequiredError("Invalid token type")
+    
+# ===============================
+# TOKEN REVOCATION
+# ===============================
+
+_revoked_tokens = {}  # jti -> expiration datetime
+
+def revoke_token(jti: str, expires_at: datetime):
+    """Add a token to the revocation list."""
+    _revoked_tokens[jti] = expires_at
+
+def is_token_revoked(jti: str) -> bool:
+    """Check if a token has been revoked."""
+    exp = _revoked_tokens.get(jti)
+    if exp is None:
+        return False
+    if datetime.now(timezone.utc) >= exp:
+        # Auto-clean expired revocations
+        del _revoked_tokens[jti]
+        return False
+    return True
