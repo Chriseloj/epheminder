@@ -33,7 +33,17 @@ PERMISSIONS = {
 }
 
 def has_permission(role: Role, action: str, own: bool = False) -> bool:
-    """Check if the role can perform the action."""
+    """
+    Check if the role can perform the action.
+
+    Args:
+        role (Role): Role of the user.
+        action (str): Action to check permission for.
+        own (bool): If True, check permission for own resource.
+
+    Returns:
+        bool: True if permission is granted, False otherwise.
+    """
     if not isinstance(action, str) or not action:
         return False
     if role not in PERMISSIONS:
@@ -48,31 +58,19 @@ def authorize(user, action: str, resource_owner_id=None):
 
     Responsibilities:
     - Ensure the user is authenticated.
-    - Automatically determine ownership (if applicable).
+    - Determine ownership automatically.
     - Enforce deny-by-default policy.
     - Raise appropriate security exceptions when needed.
     """
-
-    # 🔐 Enforce authentication (deny-by-default)
+    # 🔐 Enforce authentication
     if user is None:
         raise AuthenticationRequiredError()
     
-    # Defensive check
-    if not hasattr(user, "role") or not hasattr(user, "id"):
+    if not hasattr(user, "role_enum") or not hasattr(user, "id"):
         raise AuthenticationRequiredError("Invalid user context")
     
-    try:
+    role_enum = user.role_enum # Not trust on token
 
-        role_enum = user.role_enum
-
-    except ValueError as e:
-        logger.error(
-            "invalid_role | user_hash=%s | reason=%s",
-            hash_sensitive(getattr(user, "id", "unknown")),
-            str(e),
-        )
-        raise AuthenticationRequiredError("Invalid user role")
-    
     own = resource_owner_id is not None and user.id == resource_owner_id
 
     # Permission check
