@@ -6,6 +6,7 @@ import uuid
 import hashlib
 from datetime import datetime, timedelta, timezone
 import logging
+import hmac
 from config import (SECRET_KEY,
 ALGORITHM,
 ACCESS_TOKEN_EXPIRE_MINUTES,
@@ -94,7 +95,7 @@ def generate_jti() -> str:
 
 
 def hash_token(token: str) -> str:
-    return hashlib.sha256(token.encode()).hexdigest()
+    return hmac.new(SECRET_KEY.encode(), token.encode(), hashlib.sha256).hexdigest()
 
 
 # ===============================
