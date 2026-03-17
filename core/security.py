@@ -132,13 +132,57 @@ def create_refresh_token(user) -> str:
 # TOKEN VALIDATION
 # ===============================
 
-def decode_token(token: str) -> dict:
+def decode_token(token: str, expected_type: str = None) -> dict:
+    """
+    Decode and validate a JWT token.
+
+    Validations:
+    - Signature and expiration
+    - Subject (sub) is valid UUID
+    - Token type if expected_type is provided
+    - iat (issued at) and nbf (not before) claims
+
+    Args:
+        token (str): JWT token string.
+        expected_type (str, optional): 'access' or 'refresh'.
+
+    Returns:
+        dict: Decoded payload.
+    """
     try:
-        return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
     except jwt.ExpiredSignatureError:
         raise AuthenticationRequiredError("Token expired")
     except jwt.InvalidTokenError:
         raise AuthenticationRequiredError("Invalid token")
+
+    # Validate 'sub' is UUID
+    sub = payload.get("sub")
+    try:
+        uuid.UUID(str(sub))
+    except (ValueError, TypeError):
+        raise AuthenticationRequiredError("Invalid subject in token")
+
+    # Validate iat and nbf
+    now = datetime.now(timezone.utc)
+    iat = payload.get("iat")
+    nbf = payload.get("nbf")
+
+    if iat is not None:
+        iat_dt = datetime.fromtimestamp(iat, tz=timezone.utc)
+        if now < iat_dt:
+            raise AuthenticationRequiredError("Token not valid yet (iat)")
+
+    if nbf is not None:
+        nbf_dt = datetime.fromtimestamp(nbf, tz=timezone.utc)
+        if now < nbf_dt:
+            raise AuthenticationRequiredError("Token not valid yet (nbf)")
+
+    # Verify token type
+    if expected_type is not None:
+        verify_token_type(payload, expected_type)
+
+    return payload
 
 
 def verify_token_type(payload: dict, expected_type: str):
