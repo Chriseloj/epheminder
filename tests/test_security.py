@@ -1,6 +1,16 @@
 import pytest
 from core.security import Role, has_permission, authorize
 from core.exceptions import PermissionDeniedError, AuthenticationRequiredError
+import jwt
+from datetime import datetime, timedelta, timezone
+
+from core.security import (
+    create_access_token,
+    decode_token,
+    revoke_token,
+    generate_jti,
+)
+from config import SECRET_KEY, ALGORITHM
 
 # ---------------------------
 # TEST has_permission()
@@ -63,3 +73,73 @@ def test_authorize_invalid_user_obj():
         pass
     with pytest.raises(AuthenticationRequiredError):
         authorize(BadUser(), "read")
+
+# ---------------------------
+# TEST decode_token() - security hardening
+# ---------------------------
+
+class DummyJWTUser:
+    def __init__(self, id_):
+        self.id = id_
+        self.role = "user"
+
+def test_revoked_token_is_rejected():
+    user = DummyJWTUser(generate_jti())
+
+    token = create_access_token(user)
+    payload = decode_token(token)
+
+    revoke_token(payload["jti"], payload["exp"])
+
+    with pytest.raises(AuthenticationRequiredError):
+        decode_token(token)
+
+def test_token_with_future_iat_is_rejected():
+    future_time = datetime.now(timezone.utc) + timedelta(minutes=10)
+
+    payload = {
+        "sub": str(generate_jti()),
+        "type": "access",
+        "jti": generate_jti(),
+        "iat": int(future_time.timestamp()),
+        "exp": future_time + timedelta(minutes=5),
+    }
+
+    token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+
+    with pytest.raises(AuthenticationRequiredError):
+        decode_token(token)
+
+def test_token_with_future_nbf_is_rejected():
+    future_time = datetime.now(timezone.utc) + timedelta(minutes=10)
+
+    payload = {
+        "sub": str(generate_jti()),
+        "type": "access",
+        "jti": generate_jti(),
+        "nbf": int(future_time.timestamp()),
+        "exp": future_time + timedelta(minutes=5),
+    }
+
+    token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+
+    with pytest.raises(AuthenticationRequiredError):
+        decode_token(token)
+
+def test_valid_token_with_iat_and_nbf():
+    now = datetime.now(timezone.utc)
+
+    payload = {
+        "sub": str(generate_jti()),
+        "type": "access",
+        "jti": generate_jti(),
+        "iat": int(now.timestamp()),
+        "nbf": int(now.timestamp()),
+        "exp": now + timedelta(minutes=5),
+    }
+
+    token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+
+    decoded = decode_token(token, expected_type="access")
+
+    assert "sub" in decoded
