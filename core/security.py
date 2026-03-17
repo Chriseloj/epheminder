@@ -203,6 +203,9 @@ _revoked_tokens = {}  # jti -> expiration datetime
 
 def revoke_token(jti: str, expires_at: datetime):
     """Add a token to the revocation list."""
+    if isinstance(expires_at, (int, float)):
+        expires_at = datetime.fromtimestamp(expires_at, tz=timezone.utc)
+        
     _revoked_tokens[jti] = expires_at
 
 def is_token_revoked(jti: str) -> bool:
