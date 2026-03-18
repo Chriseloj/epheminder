@@ -18,9 +18,10 @@ logger = logging.getLogger(__name__)
 def refresh(refresh_token: str, db_session):
     """
     Rotate a refresh token: invalidates the old token, create a new one, and returns the access and refresh tokens.
+    Implements detection of refresh token reuse.
     """
     try:
-        # Decode and verifiy token
+        # Decode and verify token
         payload = decode_token(refresh_token)
         verify_token_type(payload, "refresh")
 
@@ -29,7 +30,7 @@ def refresh(refresh_token: str, db_session):
         # Search token on DB and validate active user
         stored_token = (
             db_session.query(RefreshTokenDB)
-            .filter_by(token_hash=token_hash, revoked=False)
+            .filter_by(token_hash=token_hash)
             .join(UserDB)
             .filter(UserDB.id == uuid.UUID(payload["sub"]), UserDB.is_active == True)
             .first()
@@ -43,18 +44,33 @@ def refresh(refresh_token: str, db_session):
         if expires_at.tzinfo is None:
             expires_at = expires_at.replace(tzinfo=timezone.utc)
 
+        # Check expiration first
         if expires_at < now:
+            stored_token.revoked = True
+            db_session.commit()
             raise AuthenticationRequiredError("Refresh token expired")
 
-        # ROTATION: revoke old token 
-        stored_token.revoked = True
-        db_session.flush()  # sincronize changes before create new token
+        # 🔴 Detect reuse
+        if stored_token.revoked:
+            logger.warning(
+                "Detected reuse of refresh token | user_hash=%s | token_hash=%s",
+                hash_sensitive(stored_token.user.id),
+                token_hash
+            )
+            # Revoke all active tokens of the user
+            db_session.query(RefreshTokenDB).filter_by(user_id=stored_token.user.id, revoked=False).update({"revoked": True})
+            db_session.commit()
+            raise AuthenticationRequiredError("Refresh token reuse detected")
 
-        # Create nee tokens
+        # ROTATION: revoke old token
+        stored_token.revoked = True
+        db_session.flush()  # ensure DB sees the change before inserting new token
+
+        # Create new tokens
         new_access = create_access_token(stored_token.user)
         new_refresh = create_refresh_token(stored_token.user)
 
-        # Save new refresh token on DB
+        # Save new refresh token in DB
         new_refresh_db = RefreshTokenDB(
             id=uuid.uuid4(),
             user_id=stored_token.user.id,
@@ -67,7 +83,7 @@ def refresh(refresh_token: str, db_session):
         db_session.commit()
 
         logger.info(
-            "Refresh token rotated | user_hash= %s | old_token= %s ",
+            "Refresh token rotated | user_hash=%s | old_token=%s",
             hash_sensitive(stored_token.user.id),
             token_hash
         )
@@ -82,8 +98,5 @@ def refresh(refresh_token: str, db_session):
         raise
     except Exception as e:
         db_session.rollback()
-        logger.exception(
-            "Unexpected error during token refresh: %s",
-            str(e)
-        )
+        logger.exception("Unexpected error during token refresh: %s", str(e))
         raise AuthenticationRequiredError("An error occurred during token refresh")
