@@ -4,10 +4,11 @@ from core.exceptions import PermissionDeniedError, AuthenticationRequiredError
 import jwt
 from datetime import datetime, timedelta, timezone
 
+from core.middleware import revoke_access_token, is_token_revoked, get_current_user
+
 from core.security import (
     create_access_token,
     decode_token,
-    revoke_token,
     generate_jti,
 )
 from config import SECRET_KEY, ALGORITHM
@@ -83,16 +84,15 @@ class DummyJWTUser:
         self.id = id_
         self.role = "user"
 
-def test_revoked_token_is_rejected():
+def test_revoked_token_is_rejected(db_session): 
     user = DummyJWTUser(generate_jti())
 
     token = create_access_token(user)
-    payload = decode_token(token)
-
-    revoke_token(payload["jti"], payload["exp"])
+    
+    revoke_access_token(token, db_session)
 
     with pytest.raises(AuthenticationRequiredError):
-        decode_token(token)
+        get_current_user(token, db_session)
 
 def test_token_with_future_iat_is_rejected():
     future_time = datetime.now(timezone.utc) + timedelta(minutes=10)
