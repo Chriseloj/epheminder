@@ -103,29 +103,32 @@ def hash_token(token: str) -> str:
 # ===============================
 
 def create_access_token(user) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    
+    now = datetime.now(timezone.utc)
+    expire = now + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
 
     payload = {
-        "sub": str(user.id),   # ✅ UUID to string
+        "sub": str(user.id), # ✅ UUID to string
         "role": user.role,
         "type": "access",
         "jti": generate_jti(),
-        "exp": expire
+        "iat": int(now.timestamp()),
+        "exp": int(expire.timestamp())
     }
-
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
 
 def create_refresh_token(user) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    now = datetime.now(timezone.utc)
+    expire = now + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
 
     payload = {
-        "sub": str(user.id),    # ✅ UUID to string
+        "sub": str(user.id),
         "type": "refresh",
-        "jti": generate_jti(),
-        "exp": expire
+        "jti": generate_jti(),  
+        "iat": int(now.timestamp()),
+        "exp": int(expire.timestamp())
     }
-
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
 
@@ -180,41 +183,11 @@ def decode_token(token: str, expected_type: str = None) -> dict:
             raise AuthenticationRequiredError("Token not valid yet (nbf)")
 
     # Verify token type
-    if expected_type is not None:
+    if expected_type:
         verify_token_type(payload, expected_type)
 
-    # Check revocation
-    jti = payload.get("jti")
-    if jti and is_token_revoked(jti):
-        raise AuthenticationRequiredError("Token has been revoked")
-
     return payload
-
 
 def verify_token_type(payload: dict, expected_type: str):
     if payload.get("type") != expected_type:
         raise AuthenticationRequiredError("Invalid token type")
-    
-# ===============================
-# TOKEN REVOCATION
-# ===============================
-
-_revoked_tokens = {}  # jti -> expiration datetime
-
-def revoke_token(jti: str, expires_at: datetime):
-    """Add a token to the revocation list."""
-    if isinstance(expires_at, (int, float)):
-        expires_at = datetime.fromtimestamp(expires_at, tz=timezone.utc)
-        
-    _revoked_tokens[jti] = expires_at
-
-def is_token_revoked(jti: str) -> bool:
-    """Check if a token has been revoked."""
-    exp = _revoked_tokens.get(jti)
-    if exp is None:
-        return False
-    if datetime.now(timezone.utc) >= exp:
-        # Auto-clean expired revocations
-        del _revoked_tokens[jti]
-        return False
-    return True
