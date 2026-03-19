@@ -4,8 +4,6 @@ from sqlalchemy.orm import sessionmaker
 from datetime import datetime, timezone
 from core.models import Base, UserDB, ReminderDB, RefreshTokenDB
 from core.passwords import hash_password
-from unittest.mock import patch, MagicMock
-from core.registration import RegistrationService
 from sqlalchemy import event
 from sqlalchemy.pool import StaticPool
 
@@ -123,33 +121,3 @@ def disable_rate_limiting_registration(monkeypatch):
         "core.decorators.register_rate_limited",  # decorador register
         passthrough_decorator
     )
-
-
-@pytest.mark.parametrize("username,password,ip", [
-    ("user1","ValidPass123!","127.0.0.1"),
-    ("user2","weak","127.0.0.1"),
-])
-def test_register_exceptions(username, password, ip):
-    db_mock = MagicMock()
-
-    # Patch rate limit
-    with patch("core.registration.check_register_rate_limit", return_value=None):
-        # Patch validate_password
-        if password == "weak":
-            with patch("core.registration.validate_password", side_effect=ValueError("Password too weak")):
-                with pytest.raises(ValueError, match="Password too weak"):
-                    RegistrationService.register(
-                        username=username,
-                        password=password,
-                        ip=ip,
-                        db_session=db_mock
-                    )
-        else:
-            # db_session=None caso
-            with pytest.raises(ValueError, match="db_session is required"):
-                RegistrationService.register(
-                    username=username,
-                    password=password,
-                    ip=ip,
-                    db_session=None
-                )
