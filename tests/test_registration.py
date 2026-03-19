@@ -1,6 +1,9 @@
 import pytest
 from core.registration import RegistrationService
 from unittest.mock import MagicMock, patch
+from core.models import UserDB
+from core.passwords import hash_password
+from core.exceptions import InvalidPasswordError
 
 
 DECORATOR_PATCHES = [
@@ -83,3 +86,39 @@ def test_register_logs_on_call(caplog):
             )
 
     assert all("Registered user" not in rec.message for rec in caplog.records)
+
+# -------------------------------
+# Test: register exceptions (clean)
+# -------------------------------
+
+def test_register_valid_user(db_session):
+    result = RegistrationService.register(
+        username="user1",
+        password="StrongPassword123!",
+        ip="127.0.0.1",
+        db_session=db_session
+    )
+
+    assert result is not None
+    assert isinstance(result, UserDB)
+    assert result.username == "user1"
+
+
+def test_register_weak_password_raises(db_session):
+    with pytest.raises(InvalidPasswordError):
+        RegistrationService.register(
+            username="user2",
+            password="ValidButNoSymbols123",
+            ip="127.0.0.1",
+            db_session=db_session
+        )
+
+
+def test_register_no_db_session_raises():
+    with pytest.raises(ValueError, match="db_session is required"):
+        RegistrationService.register(
+            username="user3",
+            password="StrongPassword123!",
+            ip="127.0.0.1",
+            db_session=None
+        )
