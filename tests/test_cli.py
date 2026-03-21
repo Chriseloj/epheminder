@@ -1,6 +1,5 @@
 import pytest
 from unittest.mock import MagicMock, patch
-from cli.cli_exceptions import CLIExit
 from app.cli import run_cli
 from application.auth_flow import register as auth_register, login as auth_login
 from application.reminder_flow import create_reminder as create_reminder_flow
@@ -12,7 +11,6 @@ from core.exceptions import (InvalidPasswordError,
 AuthenticationRequiredError,
 ReminderTextTooLongError,
 MaxRemindersReachedError,
-InvalidExpirationError,
 PermissionDeniedError)
 
 from datetime import datetime, timezone, timedelta
@@ -111,14 +109,14 @@ def test_register_invalid_password():
 
         result = auth_register(
             username="bob",
-            password="123",
+            password="Fake_password123",
             db_session=db_session,
             session_service=MagicMock(),
             registration_service=registration_service
         )
 
     assert result["success"] is False
-    assert "Too weak" in result["error"]
+    assert "Password does not meet security requirements" in result["error"]
     mock_backoff.assert_called_once()
 
 def test_login_blocked():
@@ -153,7 +151,7 @@ def test_login_blocked():
     )
 
     assert result["success"] is False
-    assert "Account temporarily locked" in result["error"]
+    assert "Login temporarily blocked" in result["error"]
 
 # -----------------------------
 # REMINDER FLOW - GOOD CASES
@@ -212,7 +210,7 @@ def test_create_reminder_text_too_long():
             reminder_repo=reminder_repo
         )
     assert result["success"] is False
-    assert "max" in result["error"]
+    assert "100 characters" in result["error"]
 
 def test_create_reminder_max_reached():
     reminder_repo = MagicMock()
@@ -241,7 +239,7 @@ def test_delete_reminder_permission_denied():
             reminder_repo=reminder_repo
         )
         assert result["success"] is False
-        assert "Permission denied" in result["error"]
+        assert "permission" in result["error"].lower()
 
 # -----------------------------
 # SESSION SERVICE

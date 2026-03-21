@@ -34,7 +34,7 @@ class PermissionDeniedError(ReminderError):
         self.role = role
         self.action = action
         if log_message is None:
-            log_message = f"Permission denied for role '{role}' to perform '{action}'"
+            log_message = "Permission denied"
         super().__init__(log_message)
         self.public_message = "You do not have permission to perform this action"
 
@@ -54,7 +54,7 @@ class ReminderTextTooLongError(ReminderError):
         self.max_length = MAX_TEXT_LENGTH
         if log_message is None:
             if length is not None:
-                log_message = f"Reminder text too long: {length} characters (max {self.max_length})"
+                log_message = f"Reminder text exceeded max length: {self.max_length}"
             else:
                 log_message = f"Reminder text too long (max {self.max_length})"
         super().__init__(log_message)
@@ -156,3 +156,32 @@ class RateLimitExceededError(ReminderError):
             log_message = f"Action blocked due to rate limit ({rate_limit_seconds}s)."
         super().__init__(log_message)
         self.public_message = f"Please wait {rate_limit_seconds} seconds before retrying"
+
+# ------------------------------
+# USER EXISTS
+# ------------------------------
+
+class UserAlreadyExistsError(ReminderError):
+    """Raised when trying to register a user that already exists."""
+    def __init__(self, username: str, log_message: str = None):
+        self.username = username
+
+        if log_message is None:
+            log_message = "Attempt to register already taken username"
+
+        super().__init__(log_message)
+
+        self.public_message = "Invalid credentials"
+
+# ------------------------------
+# REMINDER NOT FOUND
+# ------------------------------
+
+class ReminderNotFoundError(ReminderError):
+    """Raised when a reminder is not found"""
+    def __init__(self, reminder_id: int, log_message: str = None):
+        self.reminder_id = reminder_id
+        if log_message is None:
+            log_message = f"Reminder not found: {reminder_id}"
+        super().__init__(log_message)
+        self.public_message = "Reminder not found."

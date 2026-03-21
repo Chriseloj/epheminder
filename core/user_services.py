@@ -6,7 +6,7 @@ from core.security import Role
 from core.exceptions import (
     MissingDataError,
     InvalidUserError,
-    UsernameTakenError
+    UsernameTakenError,
 )
 from core.passwords import validate_password, hash_password
 from infrastructure.repositories import UserRepository

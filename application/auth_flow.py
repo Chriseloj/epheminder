@@ -1,4 +1,4 @@
-from core.exceptions import InvalidPasswordError, AuthenticationRequiredError
+from core.exceptions import InvalidPasswordError, AuthenticationRequiredError, UsernameTakenError
 from core.protection import (check_register_rate_limit,
 apply_register_backoff,
 reset_register_attempts,
@@ -45,10 +45,16 @@ def register(username, password, db_session, session_service, registration_servi
         reset_register_attempts(username, "127.0.0.1", db_session)
         return {"success": True, "user": user}
 
-    except Exception as e:
-        # Failed registration → increment attempts
+    except InvalidPasswordError as e:
         apply_register_backoff(username, "127.0.0.1", db_session)
-        return {"success": False, "error": str(e)}
+        return {"success": False, "error": e.public_message}
+
+    except UsernameTakenError as e:
+        return {"success": False, "error": e.public_message}
+
+    except Exception:
+        apply_register_backoff(username, "127.0.0.1", db_session)
+        return {"success": False, "error": "Unexpected error."}
 
 
 def login(username, password, db_session, session_service, authentication_service, user_service):
@@ -77,20 +83,31 @@ def login(username, password, db_session, session_service, authentication_servic
             - 'access_token' (optional): Access token if login succeeded.
             - 'error' (optional): Error message if login failed.
     """
-    # Retrieve user first
+
+    # 1. Retrieve user
     user = user_service.get_user_by_username(username, db_session=db_session)
     if not user:
         return {"success": False, "error": "Invalid credentials."}
 
-    # Check lock and rate-limit for existing user
+    # 2. Check lock and rate limit
     try:
-
         check_lock(user.id, "127.0.0.1", db_session)
         check_rate_limit(user.id, "127.0.0.1", db_session)
-    except AuthenticationRequiredError as e:
-        return {"success": False, "error": f"Login blocked or rate-limited: {e}"}
+    except AuthenticationRequiredError:
+        return {
+            "success": False,
+            "error": "Login temporarily blocked. Try again later."
+        }
 
-    # Attempt login
+    # 3. Session check
+    if getattr(session_service, "logged_in", False) is True:
+        if session_service.current_user.username != username:
+            return {
+                "success": False,
+                "error": "Another user is already logged in. Please logout first."
+            }
+
+    # 4. Attempt login
     try:
         tokens = authentication_service.login(
             username=username,
@@ -98,12 +115,11 @@ def login(username, password, db_session, session_service, authentication_servic
             ip="127.0.0.1",
             db_session=db_session
         )
-    except InvalidPasswordError:
-        # Wrong password → increment attempts but do NOT show rate-limit message
+    except InvalidPasswordError as e:
         apply_backoff(user.id, "127.0.0.1", db_session)
-        return {"success": False, "error": "Invalid credentials."}
+        return {"success": False, "error": e.public_message}
 
-    # Successful login → reset attempts and set session
+    # 5. Success
     reset_attempts(user.id, "127.0.0.1", db_session)
 
     session_service.set_session(
@@ -112,4 +128,8 @@ def login(username, password, db_session, session_service, authentication_servic
         refresh_token=tokens.get("refresh_token")
     )
 
-    return {"success": True, "user": user, "access_token": tokens.get("access_token")}
+    return {
+        "success": True,
+        "user": user,
+        "access_token": tokens.get("access_token")
+    }
