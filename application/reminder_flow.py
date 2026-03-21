@@ -3,8 +3,13 @@ from core.exceptions import (
     ReminderTextTooLongError,
     InvalidExpirationError,
     MaxRemindersReachedError,
-    PermissionDeniedError
+    PermissionDeniedError,
+    ReminderNotFoundError
+    
 )
+import logging
+
+logger = logging.getLogger(__name__)
 
 def create_reminder(user, text, amount, unit, reminder_repo):
     """
@@ -31,13 +36,14 @@ def create_reminder(user, text, amount, unit, reminder_repo):
         return {"success": True, "reminder_id": reminder.id}
 
     except ReminderTextTooLongError as e:
-        return {"success": False, "error": f"Reminder text too long (max {e.max_length} chars)."}
+        return {"success": False, "error": e.public_message}
     except MaxRemindersReachedError as e:
-        return {"success": False, "error": f"You have reached the maximum of {e.max_reminders_per_user} reminders."}
+        return {"success": False, "error": e.public_message}
     except InvalidExpirationError as e:
-        return {"success": False, "error": f"Invalid expiration: {e}"}
+        return {"success": False, "error": e.public_message}
     except Exception as e:
-        return {"success": False, "error": f"Failed to create reminder: {e}"}
+        logger.exception("Unexpected error in create_reminder")
+        return {"success": False, "error": "Failed to create reminder."}
 
 
 def list_reminders(user, reminder_repo):
@@ -61,10 +67,11 @@ def list_reminders(user, reminder_repo):
         ]
         return {"success": True, "reminders": reminders_list}
 
-    except (InvalidExpirationError, PermissionDeniedError) as e:
-        return {"success": False, "error": str(e)}
+    except PermissionDeniedError as e:
+        return {"success": False, "error": e.public_message}
     except Exception as e:
-        return {"success": False, "error": f"Failed to list reminders: {e}"}
+        logger.exception("Unexpected error in list_reminders")
+        return {"success": False, "error": "Failed to list reminders."}
 
 
 def delete_reminder(user, reminder_id, reminder_repo):
@@ -80,13 +87,19 @@ def delete_reminder(user, reminder_id, reminder_repo):
         dict: Result dictionary with 'success' key or 'error'
     """
     try:
-        success = ReminderService.delete_reminder(user, reminder_id, reminder_repo=reminder_repo)
-        if success:
-            return {"success": True}
-        else:
-            return {"success": False, "error": "Reminder not found."}
+        ReminderService.delete_reminder(
+            user=user,
+            reminder_id=reminder_id,
+            reminder_repo=reminder_repo
+        )
+        return {"success": True}
 
-    except PermissionDeniedError:
-        return {"success": False, "error": "Permission denied for deleting reminders."}
-    except Exception as e:
-        return {"success": False, "error": f"Failed to delete reminder: {e}"}
+    except ReminderNotFoundError:
+        return {"success": False, "error": "Reminder not found."}
+
+    except PermissionDeniedError as e:
+        return {"success": False, "error": e.public_message}
+
+    except Exception:
+        logger.exception("Unexpected error in delete_reminder")
+        return {"success": False, "error": "Failed to delete reminder."}
