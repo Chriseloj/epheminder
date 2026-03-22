@@ -7,6 +7,24 @@ from core.exceptions import InvalidExpirationError
 
 import uuid
 
+"""
+CLI handlers for user interaction.
+
+This module acts as a thin layer between the CLI interface and the
+application use cases (auth_flow, reminder_flow).
+
+Responsibilities:
+- Collect user input safely
+- Perform minimal validation
+- Call application services / use cases
+- Return standardized response dictionaries
+
+All handlers return a dict with at least:
+    - success (bool)
+    - error (str, optional)
+    - additional data depending on the use case
+"""
+
 
 def handle_register(session_service, registration_service, db_session):
     print_section("Register")
@@ -40,6 +58,15 @@ def handle_login(session_service, authentication_service, user_service, db_sessi
 
 
 def handle_create_reminder(session_service, reminder_repo):
+    """
+    Handles CLI flow for creating a reminder.
+
+    Requires an authenticated user.
+    Performs input validation and normalizes time units.
+
+    Returns:
+        dict: Standard response with success/error.
+    """
     print_section("Create Reminder")
 
     if not getattr(session_service, "current_user", None):
@@ -87,6 +114,17 @@ def handle_list_reminders(session_service, reminder_repo):
 
 
 def handle_delete_reminder(session_service, reminder_repo):
+    """
+    Handles CLI flow for deleting a reminder.
+
+    - Requires authentication
+    - Displays reminders sorted by expiration
+    - Allows user to cancel operation
+    - Validates UUID format before deletion
+
+    Returns:
+        dict: Standard response with success/error.
+    """
     print_section("Delete Reminder")
 
     if not getattr(session_service, "current_user", None):
