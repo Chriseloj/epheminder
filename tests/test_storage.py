@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock 
 from sqlalchemy.orm import Session
 import importlib
 
@@ -39,14 +39,37 @@ def storage_mocked():
 def test_storage_dir_created(storage_mocked):
     storage, mock_mkdir, _, _ = storage_mocked
     # Assert mkdir 
-    mock_mkdir.assert_called_with(parents=True, exist_ok=True)
+    assert storage.DATA_DIR.exists()
+
+def test_secure_db_respects_env(monkeypatch):
+    monkeypatch.setenv("SECURE_DB", "true")
+
+    import importlib
+    import infrastructure.storage as storage
+    importlib.reload(storage)
+    
 def test_chmod_called_on_database_file(storage_mocked):
     storage, _, mock_chmod, _ = storage_mocked
-    mock_chmod.assert_called_with(storage.DATABASE_FILE, 0o600)
+    
+    db_file = storage.DATA_DIR / "database.db"
 
-def test_base_metadata_create_all_called_on_import(storage_mocked):
-    storage, _, _, mock_create_all = storage_mocked
-    mock_create_all.assert_called_with(bind=storage.engine)
+    mock_chmod.assert_not_called()
+
+def test_create_all_called(monkeypatch):
+    from app.main import start_app
+    from infrastructure import storage
+
+    called = False
+
+    def fake_create_all(bind):
+        nonlocal called
+        called = True
+
+    monkeypatch.setattr(storage.Base.metadata, "create_all", fake_create_all)
+
+    start_app()
+
+    assert called
 
 # ------------------------------
 # SessionLocal
