@@ -5,16 +5,10 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base, Session
 from typing import Generator
 from contextlib import contextmanager
+from config import DATABASE_URL, DATA_DIR
 import logging
 
 logger = logging.getLogger(__name__)
-
-BASE_DIR = Path(__file__).resolve().parent
-STORAGE_DIR = BASE_DIR # Compatibility with tests
-DATABASE_FILE = BASE_DIR / "database.db"
-DATABASE_URL = f"sqlite:///{DATABASE_FILE}"
-
-STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 
 engine = create_engine(
     DATABASE_URL,
@@ -30,8 +24,6 @@ SessionLocal = sessionmaker(
 )
 
 Base = declarative_base()
-Base.metadata.create_all(bind=engine)
-
 
 def _secure_database_file():
     """
@@ -39,9 +31,11 @@ def _secure_database_file():
     On POSIX systems uses chmod 0600.
     On Windows uses ACL to allow only the current user.
     """
-    if not DATABASE_FILE.exists():
-        return
+    db_file = DATA_DIR / "database.db"
 
+    if not db_file.exists():
+        return
+    
     if platform.system() == "Windows":
         # Allow only the current user to read/write
         # Equivalent to running in CMD: icacls "database.db" /inheritance:r /grant:r "%USERNAME%:F"
@@ -49,7 +43,7 @@ def _secure_database_file():
             import subprocess
             username = os.getlogin()
             subprocess.run(
-                ["icacls", str(DATABASE_FILE), "/inheritance:r", "/grant:r", f"{username}:F"],
+                ["icacls", str(db_file), "/inheritance:r", "/grant:r", f"{username}:F"],
                 check=True
             )
         except Exception as e:
@@ -58,12 +52,12 @@ def _secure_database_file():
     else:
         # POSIX systems: owner read/write only
         try:
-            os.chmod(DATABASE_FILE, 0o600)
+
+            if os.getenv("SECURE_DB", "false") == "true":
+                os.chmod(db_file, 0o600)
+
         except PermissionError:
-            logger.warning("Could not secure database file, check permissions.")
-
-_secure_database_file()
-
+            logger.warning("Could not secure database file")
 
 @contextmanager
 def get_db_session() -> Generator[Session, None, None]:

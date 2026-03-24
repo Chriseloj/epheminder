@@ -1,3 +1,8 @@
+import os
+
+os.environ["SECRET_KEY"] = "a" * 64
+os.environ["DATABASE_URL"] = "sqlite:///:memory:"
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -8,7 +13,7 @@ from sqlalchemy import event
 from sqlalchemy.pool import StaticPool
 
 # ------------------------
-# ENGINE DE PRUEBA EN MEMORIA
+# ENGINE
 # ------------------------
 @pytest.fixture
 def engine():
@@ -121,3 +126,9 @@ def disable_rate_limiting_registration(monkeypatch):
         "core.decorators.register_rate_limited",  # decorador register
         passthrough_decorator
     )
+
+
+@pytest.fixture(autouse=True)
+def set_test_env(monkeypatch):
+    monkeypatch.setenv("SECRET_KEY", "test_secret")
+    monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
