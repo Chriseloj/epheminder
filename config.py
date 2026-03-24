@@ -1,14 +1,10 @@
 import os
-from dotenv import load_dotenv
-
-load_dotenv(override=True)
+from pathlib import Path
 
 # ===============================
 # JWT CONFIGURATION
 # ===============================
 SECRET_KEY = os.getenv("SECRET_KEY")
-if not SECRET_KEY:
-    raise RuntimeError("SECRET_KEY is not set in .env")
 
 ALGORITHM = os.getenv("JWT_ALGORITHM", "HS512")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 15))
@@ -35,7 +31,13 @@ MAX_REMINDERS_PER_USER = int(os.getenv("MAX_REMINDERS_PER_USER", 23))
 # ===============================
 #  DB URLs (if apply)
 # ===============================
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///db.sqlite3")
+DATA_DIR = Path(os.getenv("DATA_DIR", "./data"))
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    f"sqlite:///{DATA_DIR}/database.db"
+)
 
 # ===============================
 # Security parameters
