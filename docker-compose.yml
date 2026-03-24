@@ -1,0 +1,14 @@
+# ------------------------------
+# Run: docker compose run app
+# ------------------------------
+
+services:
+  app:
+    build: .
+    stdin_open: true
+    tty: true
+    volumes:
+      - ./data:/app/data
+    env_file:
+      - .env
+    restart: unless-stopped
