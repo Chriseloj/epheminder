@@ -9,7 +9,7 @@ from core.models import RefreshTokenDB
 from datetime import datetime, timedelta, timezone
 from core.authentication import authenticate
 from core.hash_utils import hash_sensitive
-from core.exceptions import AuthenticationRequiredError
+from core.exceptions import InvalidCredentialsError
 from config import REFRESH_TOKEN_EXPIRE_DAYS
 
 
@@ -79,7 +79,7 @@ class AuthenticationService:
             
             )
 
-        except AuthenticationRequiredError:
+        except InvalidCredentialsError:
             ip_hash = hash_sensitive(ip)
             
             logger.warning(

@@ -1,5 +1,5 @@
 from core.models import UserDB
-from core.exceptions import AuthenticationRequiredError, MissingDataError
+from core.exceptions import InvalidCredentialsError, MissingDataError
 from core.passwords import verify_password
 from infrastructure.repositories import UserRepository
 from core.protection import check_lock, check_rate_limit, apply_backoff, reset_attempts
@@ -30,13 +30,13 @@ def authenticate(username: str, password: str, db_session=None, ip: str = None) 
 
     Raises:
         MissingDataError: If db_session is not provided.
-        AuthenticationRequiredError: If authentication fails.
+        InvalidCredentialsError: If credentials fails.
     """
 
     if db_session is None:
         raise MissingDataError()
     if not ip:
-        raise AuthenticationRequiredError("IP is required")
+        raise MissingDataError("IP is required")
 
     repo = UserRepository(db_session)
 
@@ -57,7 +57,7 @@ def authenticate(username: str, password: str, db_session=None, ip: str = None) 
             username_hash,
             ip_hash,
         )
-        raise AuthenticationRequiredError("Invalid credentials.")
+        raise InvalidCredentialsError()
 
     user_id = user.id
 
@@ -73,7 +73,7 @@ def authenticate(username: str, password: str, db_session=None, ip: str = None) 
             username_hash,
             ip_hash,
         )
-        raise AuthenticationRequiredError("Invalid credentials.")
+        raise InvalidCredentialsError()
 
     # 3️⃣ Login successful: delete attempts previouss completly
     reset_attempts(user_id, ip, db_session=db_session)

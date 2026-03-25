@@ -5,29 +5,39 @@ import os
 import sys
 
 # ------------------------------
-# Run: python -m app.main
+# Run (default):
+#   python -m app.main
+#
+# Run (debug logging):
+#   LOG_TO_CONSOLE=true LOG_LEVEL=DEBUG python -m app.main
+#
+# Run (file logging):
+#   LOG_TO_FILE=true python -m app.main
 # ------------------------------
 
 def configure_logging():
     log_level = os.getenv("LOG_LEVEL", "INFO").upper()
     log_to_file = os.getenv("LOG_TO_FILE", "false").lower() == "true"
+    log_to_console = os.getenv("LOG_TO_CONSOLE", "false").lower() == "true"
 
     handlers = []
 
-    # Logs to stderr (do not interfere with prints of CLI)
-    console_handler = logging.StreamHandler(sys.stderr)
-    console_handler.setFormatter(
-        logging.Formatter("%(asctime)s | %(levelname)s | %(name)s | %(message)s")
-    )
-    handlers.append(console_handler)
+    if log_to_console:
+        console_handler = logging.StreamHandler(sys.stderr)
+        console_handler.setFormatter(
+            logging.Formatter("%(asctime)s | %(levelname)s | %(name)s | %(message)s")
+        )
+        handlers.append(console_handler)
 
-    # Optional: file 
     if log_to_file:
         file_handler = logging.FileHandler("app.log")
         file_handler.setFormatter(
             logging.Formatter("%(asctime)s | %(levelname)s | %(name)s | %(message)s")
         )
         handlers.append(file_handler)
+
+    if not handlers:
+        handlers.append(logging.NullHandler())
 
     logging.basicConfig(
         level=log_level,

@@ -2,7 +2,7 @@ import pytest
 from core.authentication_service import AuthenticationService
 from core.security import authorize, Role, has_permission
 from core.models import RefreshTokenDB, ReminderDB, LoginAttemptDB
-from core.exceptions import AuthenticationRequiredError, PermissionDeniedError
+from core.exceptions import PermissionDeniedError, InvalidCredentialsError
 from core.user_services import UserService
 from datetime import datetime, timedelta, timezone
 import uuid
@@ -86,7 +86,7 @@ def test_failed_login_and_backoff(db_session, sample_user):
     ip = "192.168.0.1"
     username = sample_user.username
 
-    with pytest.raises(AuthenticationRequiredError):
+    with pytest.raises(InvalidCredentialsError):
         authenticate(username, "wrongpassword", db_session=db_session, ip=ip)
 
     
