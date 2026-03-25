@@ -98,7 +98,10 @@ class InvalidPasswordError(ReminderError):
                 f"{MIN_DIGITS} digits, and {MIN_SYMBOLS} symbols from {SYMBOLS}"
             )
         super().__init__(log_message)
-        self.public_message = "Password does not meet security requirements"
+        self.public_message =  (
+            f"Password must be at least {MIN_LENGTH} characters and include "
+            f"{MIN_UPPER} uppercase, {MIN_LOWER} lowercase, {MIN_DIGITS} digit(s), and {MIN_SYMBOLS} symbol(s)."
+        )
 
 class InvalidUserError(ReminderError):
     """Raised when the username is invalid"""
@@ -185,3 +188,12 @@ class ReminderNotFoundError(ReminderError):
             log_message = f"Reminder not found: {reminder_id}"
         super().__init__(log_message)
         self.public_message = "Reminder not found."
+
+# ------------------------------
+# INVALID CREDENTIAL
+# ------------------------------
+
+class InvalidCredentialsError(ReminderError):
+    def __init__(self, log_message: str = "Invalid credentials"):
+        super().__init__(log_message)
+        self.public_message = "Invalid username or password"
