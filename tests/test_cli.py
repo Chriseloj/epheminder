@@ -116,7 +116,7 @@ def test_register_invalid_password():
         )
 
     assert result["success"] is False
-    assert "Password does not meet security requirements" in result["error"]
+    assert "Password must" in result["error"]
     mock_backoff.assert_called_once()
 
 def test_login_blocked():

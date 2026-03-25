@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import Mock, patch
 from core.models import UserDB
 from core.authentication import authenticate
-from core.exceptions import AuthenticationRequiredError, MissingDataError
+from core.exceptions import AuthenticationRequiredError, MissingDataError, InvalidCredentialsError
 
 # ------------------------
 # FIXTURE
@@ -52,7 +52,7 @@ def test_authenticate_invalid_password(db_session, sample_user):
         mock_lock.return_value = None
         mock_rate.return_value = None
 
-        with pytest.raises(AuthenticationRequiredError):
+        with pytest.raises(InvalidCredentialsError):
             authenticate(username="alice", password="wrong", db_session=db_session, ip="127.0.0.1")
 
         mock_backoff.assert_called_once()
@@ -72,7 +72,7 @@ def test_authenticate_user_not_found(db_session):
         mock_lock.return_value = None
         mock_rate.return_value = None
 
-        with pytest.raises(AuthenticationRequiredError):
+        with pytest.raises(InvalidCredentialsError):
             authenticate(username="nonexistent", password="secret", db_session=db_session, ip="127.0.0.1")
 
         mock_backoff.assert_called_once()
@@ -95,13 +95,13 @@ def test_authenticate_inactive_user(db_session, sample_user):
         mock_lock.return_value = None
         mock_rate.return_value = None
 
-        with pytest.raises(AuthenticationRequiredError):
+        with pytest.raises(InvalidCredentialsError):
             authenticate(username="alice", password="secret", db_session=db_session, ip="127.0.0.1")
 
         mock_backoff.assert_called_once()
 
 def test_authenticate_missing_ip(db_session, sample_user):
-    with pytest.raises(AuthenticationRequiredError):
+    with pytest.raises(MissingDataError):
         authenticate(username="alice", password="secret", db_session=db_session)
 
 def test_authenticate_missing_db_session():
