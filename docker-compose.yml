@@ -11,4 +11,7 @@ services:
       - ./data:/app/data
     env_file:
       - .env
+    environment:
+      LOG_TO_CONSOLE: "true"   # logs visible in container
+      LOG_LEVEL: "INFO"        # adjust to DEBUG for development
     restart: unless-stopped
