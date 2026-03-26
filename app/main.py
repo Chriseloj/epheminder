@@ -52,8 +52,8 @@ def start_app():
     
     configure_logging()
     
-    _secure_database_file()
     Base.metadata.create_all(engine)
+    _secure_database_file()
 
 def main():
     
