@@ -3,7 +3,28 @@ import os
 import sys
 
 def configure_logging():
-    log_level = os.getenv("LOG_LEVEL", "INFO").upper()
+    """
+    Configure the root logger based on environment variables.
+
+    This function sets up logging handlers and formatting dynamically using
+    environment configuration. It supports logging to console, file, or both.
+
+    Environment variables:
+        LOG_LEVEL (str): Logging level (e.g., DEBUG, INFO). Defaults to INFO.
+        LOG_TO_FILE (str): "true" to enable file logging to 'app.log'.
+        LOG_TO_CONSOLE (str): "true" to enable logging to stderr.
+        LOG_FORCE (str): "true" to override existing logging configuration.
+
+    Behavior:
+        - If no handlers are enabled, a NullHandler is used.
+        - If the root logger already has handlers, configuration is skipped
+          unless LOG_FORCE is set to true.
+
+    Side effects:
+        - Modifies the global root logger configuration.
+    """
+    log_level_str = os.getenv("LOG_LEVEL", "INFO").upper()
+    log_level = getattr(logging, log_level_str, logging.INFO)
     log_to_file = os.getenv("LOG_TO_FILE", "false").lower() == "true"
     log_to_console = os.getenv("LOG_TO_CONSOLE", "false").lower() == "true"
     force = os.getenv("LOG_FORCE", "false").lower() == "true"
@@ -30,8 +51,3 @@ def configure_logging():
     root_logger = logging.getLogger()
     if not root_logger.handlers or force:
         logging.basicConfig(level=log_level, handlers=handlers)
-
-    logging.basicConfig(
-        level=log_level,
-        handlers=handlers,
-    )
