@@ -18,6 +18,7 @@ Diseñado para crear notas temporales con expiración configurable y limpieza au
 - [Testing](#testing)
 - [Variables de entorno críticas](#variables-de-entorno-críticas)
 - [Instalación](#instalación)
+- [Uso con Docker](#-uso-con-docker)
 - [Uso / CLI](#uso--cli)
 - [Ejemplo de flujo CLI](#ejemplo-de-flujo-cli)
 - [Documentation / Slides](#documentación--slides) 
@@ -125,8 +126,8 @@ epheminder/
 ##  🧪Testing
 
 - **pytest --cov=.**. Ejecuta todos los tests y genera un reporte de cobertura de código.
-- 173 tests automatizados.
-- 91% de cobertura total.
+- 199 tests automatizados (puede variar por version)
+- 94% de cobertura total (puede variar por version)
 - Tests unitarios e integración.
 - Validación de flujos de autenticación, seguridad y expiración.
 
@@ -164,12 +165,35 @@ pip install -r requirements.txt
 
 ```
 
+## 🐳Uso con Docker
+
+También puedes ejecutar Epheminder usando Docker sin instalar Python localmente:
+
+### 1. Construir la imagen:
+
+```bash
+docker build -t epheminder:latest .
+
+```
+
+2. Crear un contenedor con volumen para la base de datos y variables de entorno:
+
+# Opción, (si tienes docker-compose.yml):
+- docker compose run app
+
 ## USO / CLI
 
-3. Ejecutar la aplicación:
+Ejecutar la aplicación:
 ```bash
 
+# Opción 1: ejecución normal
 python -m app.main
+
+# Opción 2: ejecución con logs en consola y nivel DEBUG
+LOG_TO_CONSOLE=true LOG_LEVEL=DEBUG python -m app.main
+
+# Opción 3: ejecución con logs en archivo
+LOG_TO_FILE=true python -m app.main
 
 ```
 
@@ -200,8 +224,8 @@ Login successful.
 
 Choose an option: 3
 Reminder text: Nota: el texto del recordatorio puede ser cualquier cosa hasta 100 caracteres.
-Expires in amount: 1
-Unit (minutes/hours/days): days
+Expires amount: 1
+Expiration unit (m/h/d or minutes/hours/days): days
 Reminder created. ID: 1
 
 Choose an option: 4
@@ -244,6 +268,7 @@ Designed to create temporary notes with configurable expiration and automatic cl
 - [Testing](#testing)
 - [Critical environment variables](#critical-environment-variables)
 - [Installation](#installation)
+- [Use with Docker](#-use-with-docker)
 - [Usage / CLI](#usage--cli)
 - [CLI Flow Example](#cli-flow-example)
 - [Documentation / Slides](#documentation--slides) 
@@ -350,8 +375,8 @@ epheminder/
 ## 🧪Testing
 
 - **pytest --cov=.**. Runs all tests and generates a code coverage report.
-- 173 automated tests.
-- 91% total coverage.
+- 199 automated tests (may vary per version)
+- 94% total coverage (may vary per version)
 - Unit and integration tests.
 - Security and authentication flows fully tested.
 
@@ -390,11 +415,35 @@ pip install -r requirements.txt
 
 ```
 
+## 🐳Use with Docker
+
+You can also run Epheminder using Docker without installing python locally
+
+1. Build image:
+
+```bash
+docker build -t epheminder:latest .
+
+```
+
+2. Create a container with volume for the database and enviromment variables:
+
+# Option, (if you have a docker-compose.yml file):
+- docker compose run app
+
+
 ## Usage / CLI
-3. Run app:
+Run app:
 ```bash
 
+# Option 1: normal execution
 python -m app.main
+
+# Option 2: execution with console logs and debug level
+LOG_TO_CONSOLE=true LOG_LEVEL=DEBUG python -m app.main
+
+# Option 3: execution with logs in file
+LOG_TO_FILE=true python -m app.main
 
 ```
 
@@ -424,12 +473,12 @@ Login successful.
 
 Choose an option: 3
 Reminder text: Note: the reminder text can be anything up to 100 characters.
-Expires in amount: 1
-Unit (minutes/hours/days): days
+Expires amount: 1
+Expiration unit (m/h/d or minutes/hours/days): days
 Reminder created. ID: 1
 
 Choose an option: 4
-- ID: 1 | Text: Note: the reminder text can be anything up to 100 characters.| Expires: 2026-03-05 12:00:00
+- ID: 1 | Text: Note: the reminder text can be anything up to 100 characters. | Expires: 2026-03-05 12:00:00
 
 Choose an option: 6
 Logged out successfully.
