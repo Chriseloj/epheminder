@@ -1,3 +1,4 @@
+<a name="top"></a>
 <a name="spanish-version"></a>
 # Epheminder – Sistema seguro de recordatorios efímeros
 
@@ -67,7 +68,7 @@ El objetivo es proporcionar un espacio simple y rápido para notas temporales, e
 - Eliminación automática mediante scheduler en background.
 - Limpieza periódica de refresh tokens expirados.
 
- **Stack Tecnológico**
+**Stack Tecnológico**
 - **Lenguaje:** Python 3.x
 - **Dependencias principales:** python-dotenv, PyJWT, SQLAlchemy, bcrypt
 - **Testing:** pytest + pytest-cov
@@ -75,8 +76,8 @@ El objetivo es proporcionar un espacio simple y rápido para notas temporales, e
 - **Interfaz:** CLI ligera
 - **Seguridad:** JWT, RBAC y hashing de contraseñas
 ---
-
-## ⚙Arquitectura
+<a name="arquitectura"></a>
+## ⚙ Arquitectura
 
 Epheminder sigue una arquitectura en capas con separación clara de responsabilidades.
 
@@ -176,9 +177,9 @@ docker build -t epheminder:latest .
 
 ```
 
-2. Crear un contenedor con volumen para la base de datos y variables de entorno:
+### 2. Crear un contenedor con volumen para la base de datos y variables de entorno:
 
-# Opción, (si tienes docker-compose.yml):
+#### Opción (si tienes docker-compose.yml):
 - docker compose run app
 
 ## USO / CLI
@@ -242,14 +243,17 @@ Exiting.
 
 Project slides:
 
-- Version en Español: [Epheminder_Presentation_ES.pdf](./docs/Epheminder_Presentation_ES.pdf)  
+- Version en Español: [Epheminder_Presentation_ES.pdf](./docs/Epheminder_Presentation_ES.pdf)
+
+---
+[⬆ Volver arriba](#top) | [English version](#english-version)
 
 ---  
 <a name="english-version"></a>
 ## English Version
 ---
 
-# Epheminder – Secure Ephemeral Reminder CLI
+## Epheminder – Secure Ephemeral Reminder CLI
 
 Secure and fast ephemeral reminder system via command-line interface (CLI)
 
@@ -325,6 +329,7 @@ Its goal is to provide a simple and fast space for temporary notes, avoiding the
 - **Interface:** Lightweight CLI
 - **Security:** JWT, RBAC, and password hashing
 ---
+<a name="architecture"></a>
 ## ⚙Architecture
 
 Epheminder follows a layered architecture with a clear separation of concerns.
@@ -419,16 +424,16 @@ pip install -r requirements.txt
 
 You can also run Epheminder using Docker without installing python locally
 
-1. Build image:
+### 1. Build image:
 
 ```bash
 docker build -t epheminder:latest .
 
 ```
 
-2. Create a container with volume for the database and enviromment variables:
+### 2. Create a container with volume for the database and enviromment variables:
 
-# Option, (if you have a docker-compose.yml file):
+#### Option (if you have a docker-compose.yml file):
 - docker compose run app
 
 
@@ -492,3 +497,6 @@ Exiting.
 Project slides:
 
 - English version: [Epheminder_Presentation_EN.pdf](./docs/Epheminder_Presentation_EN.pdf)
+
+---
+[⬆ Back to top](#top) | [Versión en Español](#spanish-version)
