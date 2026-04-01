@@ -132,6 +132,18 @@ epheminder/
 - Tests unitarios e integración.
 - Validación de flujos de autenticación, seguridad y expiración.
 
+### Integración Continua (CI)
+
+Este proyecto incluye un **GitHub Action** que ejecuta automáticamente los tests y genera un reporte de cobertura cada vez que se hace push o pull request a `main` (o cualquier rama en desarrollo).
+
+- Configurado para Python 3.13
+- Instala dependencias desde `requirements.txt` y `pytest` con `pytest-cov`
+- Ejecuta todos los tests
+- Falla si la cobertura de código es menor al 90%
+- Variables de entorno de prueba definidas automáticamente (`SECRET_KEY`, `JWT_ALGORITHM`, `HASH_SALT`)
+
+Así, se garantiza que el código se mantiene probado y seguro antes de cualquier merge.
+
 ⚠ Aviso de Seguridad en Windows
 
 En sistemas POSIX (Linux/macOS), los permisos del archivo de la base de datos se restringen automáticamente al propietario (0600).
@@ -384,6 +396,18 @@ epheminder/
 - 94% total coverage (may vary per version)
 - Unit and integration tests.
 - Security and authentication flows fully tested.
+
+### Continuous Integration (CI)
+
+This project includes a **GitHub Action** that automatically runs tests and generates a coverage report whenever a push or pull request is made to `main` (or any development branch).
+
+- Configured for Python 3.13
+- Installs dependencies from `requirements.txt` and `pytest` with `pytest-cov`
+- Runs all tests
+- Fails if code coverage is below 90%
+- Test environment variables are automatically set (`SECRET_KEY`, `JWT_ALGORITHM`, `HASH_SALT`)
+
+This ensures that the code remains tested and secure before any merge.
 
 ⚠ Windows Security Notice
 
