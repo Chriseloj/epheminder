@@ -16,7 +16,7 @@ Diseñado para crear notas temporales con expiración configurable y limpieza au
 - [Descripción](#descripción)
 - [Características](#características)
 - [Arquitectura](#arquitectura)
-- [Testing](#testing)
+- [Testing](#testing-es)
 - [Variables de entorno críticas](#variables-de-entorno-críticas)
 - [Instalación](#instalación)
 - [Uso con Docker](#uso-con-docker)
@@ -125,6 +125,7 @@ epheminder/
 └─ docs/
 
 ##  🧪Testing
+<a name="testing-es"></a>
 
 - **pytest --cov=.**. Ejecuta todos los tests y genera un reporte de cobertura de código.
 - 199 tests automatizados (puede variar por version)
@@ -281,7 +282,7 @@ Designed to create temporary notes with configurable expiration and automatic cl
 - [Description](#description)
 - [Features](#features)
 - [Architecture](#architecture)
-- [Testing](#testing)
+- [Testing](#testing-en)
 - [Critical environment variables](#critical-environment-variables)
 - [Installation](#installation)
 - [Use with Docker](#use-with-docker)
@@ -390,6 +391,7 @@ epheminder/
 └─ docs/
 
 ## 🧪Testing
+<a name="testing-en"></a>
 
 - **pytest --cov=.**. Runs all tests and generates a code coverage report.
 - 199 automated tests (may vary per version)
