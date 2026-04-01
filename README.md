@@ -137,6 +137,7 @@ epheminder/
 
 Este proyecto incluye un **GitHub Action** que ejecuta automáticamente los tests y genera un reporte de cobertura cada vez que se hace push o pull request a `main` (o cualquier rama en desarrollo).
 
+- Nota: si solo se modifican archivos de documentación, los tests no se ejecutan.
 - Configurado para Python 3.13
 - Instala dependencias desde `requirements.txt` y `pytest` con `pytest-cov`
 - Ejecuta todos los tests
@@ -403,6 +404,7 @@ epheminder/
 
 This project includes a **GitHub Action** that automatically runs tests and generates a coverage report whenever a push or pull request is made to `main` (or any development branch).
 
+- Note: if only documentation files are changed, tests will not run.
 - Configured for Python 3.13
 - Installs dependencies from `requirements.txt` and `pytest` with `pytest-cov`
 - Runs all tests
