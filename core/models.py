@@ -5,6 +5,7 @@ from infrastructure.storage import Base
 from core.security import Role
 import uuid
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import JSON
 
 class UserDB(Base):
     __tablename__ = "users"
@@ -37,6 +38,7 @@ class ReminderDB(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)   # UUID
     owner_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     text = Column(Text, nullable=False)
+    tags = Column(JSON, nullable=False, default=list)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True),
                         default=lambda: datetime.now(timezone.utc),

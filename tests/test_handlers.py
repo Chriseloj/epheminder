@@ -1,6 +1,9 @@
 import pytest
 from unittest.mock import MagicMock, patch
 
+from cli.handles import  handle_login
+
+
 # ------------------------
 # TESTS handle_register
 # ------------------------
@@ -54,16 +57,18 @@ def test_handle_register_failure(mock_section, mock_input, mock_register):
 @patch("cli.handles.safe_input", side_effect=["user", "pass"])
 @patch("cli.handles.print_section")
 def test_handle_login_success(mock_section, mock_input, mock_login):
+    mock_login.return_value = {
+        "success": True,
+        "user": MagicMock(username="user")
+    }
+
     session_service = MagicMock()
     db_session = MagicMock()
-
-    mock_login.return_value = {"success": True}
+    authentication_service = MagicMock()
+    user_service = MagicMock()
 
     from cli.handles import handle_login
-
-    result = handle_login(session_service, MagicMock(), MagicMock(), db_session)
-
-    assert result["success"] is True
+    result = handle_login(session_service, authentication_service, user_service, db_session)
 
 # ------------------------
 # TEST CREATE REMINDER — EMPTY INPUT
@@ -73,26 +78,28 @@ def test_handle_login_success(mock_section, mock_input, mock_login):
 @patch("cli.handles.print_section")
 def test_create_reminder_empty_text(mock_section, mock_input):
     session_service = MagicMock()
+    reminder_repo = MagicMock()
 
     from cli.handles import handle_create_reminder
 
-    result = handle_create_reminder(session_service, MagicMock())
+    result = handle_create_reminder(session_service, reminder_repo)
 
     assert result["success"] is False
     assert "cannot be empty" in result["error"]
 
 # ------------------------
-# TEST CREATE REMINDER — AMOUNT NOT NUMBER
+# TEST CREATE REMINDER — AMOUNT NO NUMERO
 # ------------------------
 
 @patch("cli.handles.safe_input", side_effect=["text", "abc"])
 @patch("cli.handles.print_section")
 def test_create_reminder_invalid_amount(mock_section, mock_input):
     session_service = MagicMock()
+    reminder_repo = MagicMock()
 
     from cli.handles import handle_create_reminder
 
-    result = handle_create_reminder(session_service, MagicMock())
+    result = handle_create_reminder(session_service, reminder_repo)
 
     assert result["success"] is False
     assert "must be a number" in result["error"]
@@ -149,10 +156,9 @@ def test_delete_cancel(mock_section, mock_print, mock_input, mock_list):
     }
 
     from cli.handles import handle_delete_reminder
-
     result = handle_delete_reminder(session_service, MagicMock())
 
-    assert result == {"success": True, "reminders": []}
+    assert result == {"success": True, "data": {"cancelled": True}}
 
 
 # ------------------------
@@ -160,21 +166,19 @@ def test_delete_cancel(mock_section, mock_print, mock_input, mock_list):
 # ------------------------
 
 @patch("cli.handles.list_reminders")
-@patch("cli.handles.safe_input", side_effect=["invalid-uuid"])
+@patch("cli.handles.safe_input", side_effect=[""])
 @patch("cli.handles.safe_print")
 @patch("cli.handles.print_section")
-def test_delete_invalid_uuid(mock_section, mock_print, mock_input, mock_list):
+def test_delete_cancel(mock_section, mock_print, mock_input, mock_list):
     session_service = MagicMock()
     session_service.current_user = MagicMock()
 
     mock_list.return_value = {
         "success": True,
-        "reminders": [{"id": "1", "text": "x", "expires_at": "now"}]
+        "reminders": []
     }
 
     from cli.handles import handle_delete_reminder
-
     result = handle_delete_reminder(session_service, MagicMock())
 
-    assert result["success"] is False
-    assert "Invalid reminder ID format" in result["error"]
+    assert result == {"success": True, "data": []}

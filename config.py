@@ -27,6 +27,7 @@ MAX_TEXT_LENGTH = int(os.getenv("MAX_TEXT_LENGTH", 100))
 MAX_EXPIRATION_DAYS = int(os.getenv("MAX_EXPIRATION_DAYS", 7))
 MAX_EXPIRATION_MINUTES = int(os.getenv("MAX_EXPIRATION_MINUTES", 7 * 24 * 60))
 MAX_REMINDERS_PER_USER = int(os.getenv("MAX_REMINDERS_PER_USER", 23))
+VALID_UNITS = ["m", "h", "d", "minutes", "hours", "days"]
 
 # ===============================
 #  DB URLs (if apply)

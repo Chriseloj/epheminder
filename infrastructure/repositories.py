@@ -51,6 +51,13 @@ class ReminderRepository:
 
     def get_by_id(self, reminder_id: str):
         return self.db.query(ReminderDB).filter(ReminderDB.id == reminder_id).first()
+    
+    def count_by_user(self, user_id: str) -> int:
+        """
+        Returns the total number of reminders for a given user.
+        Used for enforcing MAX_REMINDERS_PER_USER limit.
+        """
+        return self.db.query(ReminderDB).filter(ReminderDB.owner_id == user_id).count()
 
     def list_by_user(self, user_id: str):
         return self.db.query(ReminderDB).filter(ReminderDB.owner_id == user_id).all()

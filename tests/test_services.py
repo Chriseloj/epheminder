@@ -52,18 +52,19 @@ def test_create_reminder_no_repo(sample_user):
 
 def test_create_reminder_text_too_long(sample_user):
     repo_mock = MagicMock()
+    # Mock count_by_user to return 0 (no reminders) to bypass max check
+    repo_mock.count_by_user.return_value = 0
     long_text = "x" * (MAX_TEXT_LENGTH + 1)
+
     with patch("core.security.authorize", return_value=None):
         with pytest.raises(ReminderTextTooLongError):
             ReminderService.create_reminder(sample_user, long_text, 1, "minutes", reminder_repo=repo_mock)
 
 def test_create_reminder_max_reminders(sample_user):
     repo_mock = MagicMock()
-    
-    repo_mock.list_by_user.return_value = [
-        MagicMock(expires_at=datetime.now(timezone.utc) + timedelta(minutes=10))
-        for _ in range(MAX_REMINDERS_PER_USER)
-    ]
+    # Mock count_by_user to simulate max reminders reached
+    repo_mock.count_by_user.return_value = MAX_REMINDERS_PER_USER
+
     with patch("core.security.authorize", return_value=None):
         with pytest.raises(MaxRemindersReachedError):
             ReminderService.create_reminder(sample_user, "Hello", 1, "minutes", reminder_repo=repo_mock)
