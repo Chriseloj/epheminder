@@ -1,4 +1,6 @@
 import pytest
+import uuid
+
 from unittest.mock import MagicMock, patch
 from app.cli import run_cli
 from application.auth_flow import register as auth_register, login as auth_login
@@ -158,39 +160,52 @@ def test_login_blocked():
 # -----------------------------
 
 def test_create_reminder_success():
-    reminder_repo = MagicMock()
-    reminder = make_fake_reminder()
+    reminder_id = uuid.uuid4()
+
+    reminder = MagicMock()
+    reminder.id = reminder_id
+    reminder.text = "Test"
+    reminder.expires_at = "2026-04-06"
+    reminder.tags = ["tag1"]
+
     with patch("application.reminder_flow.ReminderService.create_reminder", return_value=reminder):
         result = create_reminder_flow(
             user=make_fake_user(),
             text="Test",
             amount=1,
             unit="days",
-            reminder_repo=reminder_repo
+            reminder_repo=MagicMock()
         )
+
     assert result["success"] is True
-    assert result["reminder_id"] == reminder.id
+    assert result["reminder"]["id"] == reminder_id
 
 def test_list_reminders_success():
-    reminder_repo = MagicMock()
-    reminders = [make_fake_reminder()]
+    reminder_id = uuid.uuid4()
+    reminder = MagicMock(id=reminder_id, text="Test", expires_at="2026-04-06", tags=["tag1"])
+    reminders = [reminder]
+
     with patch("application.reminder_flow.ReminderService.list_reminders", return_value=reminders):
         result = list_reminders_flow(
             user=make_fake_user(),
-            reminder_repo=reminder_repo
+            reminder_repo=MagicMock()
         )
+
     assert result["success"] is True
     assert len(result["reminders"]) == 1
-    assert result["reminders"][0]["id"] == reminders[0].id
+    assert result["reminders"][0].id == reminder_id 
 
 def test_delete_reminder_success():
     reminder_repo = MagicMock()
+    reminder_id = uuid.uuid4()  # UUID 
+    
     with patch("application.reminder_flow.ReminderService.delete_reminder", return_value=True):
         result = delete_reminder_flow(
             user=make_fake_user(),
-            reminder_id=1,
+            reminder_id=str(reminder_id),  
             reminder_repo=reminder_repo
         )
+    
     assert result["success"] is True
 
 # -----------------------------
@@ -229,17 +244,20 @@ def test_create_reminder_max_reached():
 
 def test_delete_reminder_permission_denied():
     reminder_repo = MagicMock()
+    reminder_id = uuid.uuid4()
+    
     with patch(
         "application.reminder_flow.ReminderService.delete_reminder",
         side_effect=PermissionDeniedError(role="user", action="delete_reminder")
     ):
         result = delete_reminder_flow(
             user=make_fake_user(),
-            reminder_id=1,
+            reminder_id=str(reminder_id),
             reminder_repo=reminder_repo
         )
-        assert result["success"] is False
-        assert "permission" in result["error"].lower()
+    
+    assert result["success"] is False
+    assert "permission" in result["error"].lower()
 
 # -----------------------------
 # SESSION SERVICE

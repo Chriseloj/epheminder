@@ -175,13 +175,8 @@ def test_max_reminders_per_user(monkeypatch):
     user.id = uuid.uuid4()  # UUID, not string
 
     mock_repo = MagicMock()
-    mock_repo.list_by_user.return_value = [MagicMock()] * MAX_REMINDERS_PER_USER
-
-    monkeypatch.setattr(
-        ReminderService,
-        "list_reminders",
-        lambda u, reminder_repo=None: mock_repo.list_by_user(u.id)
-    )
+    # Mock count_by_user instead of list_by_user
+    mock_repo.count_by_user.return_value = MAX_REMINDERS_PER_USER
 
     with pytest.raises(MaxRemindersReachedError) as exc_info:
         ReminderService.create_reminder(user, "Test", 1, "days", reminder_repo=mock_repo)

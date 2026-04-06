@@ -1,6 +1,7 @@
 import uuid
 import logging
 from datetime import datetime, timedelta, timezone
+from core.tagger import Tagger
 from core.models import UserDB, ReminderDB
 from core.security import authorize
 from core.exceptions import (MissingDataError,
@@ -58,66 +59,51 @@ class ReminderService:
     @staticmethod
     def _check_max_reminders(user, reminder_repo):
         # Check maximum reminders per user
-        current_count = len(ReminderService.list_reminders(user, reminder_repo=reminder_repo))
+        current_count = reminder_repo.count_by_user(user.id)
         if current_count >= MAX_REMINDERS_PER_USER:
             raise MaxRemindersReachedError(MAX_REMINDERS_PER_USER)
+        
+        
+    def count_by_user(self, user_id):
+        return self.db.query(ReminderDB).filter_by(owner_id=user_id).count()
     
     @staticmethod
-    def create_reminder(user: "UserDB", text: str, amount: int, unit: str, reminder_repo=None) -> "ReminderDB":
-        """
-        Create a new reminder for a given user.
-
-        - Validates reminder text length against MAX_TEXT_LENGTH.
-        - Ensures the user does not exceed the maximum number of reminders.
-        - Converts expiration time (amount + unit) into total minutes.
-        - Generates a unique UUID for the reminder.
-        - Sets created_at, updated_at, and expires_at timestamps automatically.
-        - Persists the reminder in the provided repository.
-        - Enforces deny-by-default authorization (user can only create reminders for themselves).
-        - Logs creation for auditing purposes.
-
-        Args:
-            user (UserDB): The user creating the reminder.
-            text (str): Content of the reminder.
-            amount (int): Quantity of time for expiration.
-            unit (str): Unit of time ("minutes", "hours", "days").
-            reminder_repo: Reminder repository instance. Required.
-
-        Returns:
-            ReminderDB: The newly created reminder object.
-
-        Raises:
-            MissingDataError: If reminder_repo is not provided.
-            InvalidExpirationError: If the expiration amount or unit is invalid.
-            ReminderTextTooLongError: If the text exceeds MAX_TEXT_LENGTH.
-            MaxRemindersReachedError: If the user already has the maximum allowed reminders.
-        """
-
+    def create_reminder(
+        user: "UserDB",
+        text: str,
+        amount: int,
+        unit: str,
+        reminder_repo=None,
+        tags: list = None,
+    ) -> "ReminderDB":
+    
         if reminder_repo is None:
             raise MissingDataError()
-        
+    
         ReminderService._check_max_reminders(user, reminder_repo)
-
         authorize(user, "create", resource_owner_id=user.id)
-
         expires_in_minutes = ReminderService.parse_expiration(amount, unit)
-
+    
         if len(text) > MAX_TEXT_LENGTH:
             raise ReminderTextTooLongError(len(text), MAX_TEXT_LENGTH)
 
         now = datetime.now(timezone.utc)
         expires_at = now + timedelta(minutes=expires_in_minutes)
 
+        if tags is None:
+            tags = Tagger.generate_tags(text)
+
         reminder_id = uuid.uuid4()
         reminder = ReminderDB(
             id=reminder_id,
-            owner_id=user.id,  # user.id is UUID
+            owner_id=user.id,
             text=text,
             created_at=now,
             updated_at=now,
-            expires_at=expires_at
+            expires_at=expires_at,
+            tags=tags or []
         )
-
+        
         reminder_repo.add(reminder)
 
         logger.info(
@@ -335,20 +321,19 @@ class ReminderService:
         Raises:
             MissingDataError: If `reminder_repo` is not provided.
         """
-        
         if reminder_repo is None:
             raise MissingDataError()
 
         reminders = reminder_repo.list_by_user(user.id)
-        now = datetime.now(timezone.utc)  # aware
+        now = datetime.now(timezone.utc)
 
-        # Return only non-expired reminders
+        # Filtrar solo recordatorios activos
         active = [
-            r for r in reminders 
-            if r.expires_at and r.expires_at.replace(tzinfo=timezone.utc) > now
+            r for r in reminders
+            if r.expires_at.astimezone(timezone.utc) > now
         ]
-        return active
-    
+
+        return active 
     @staticmethod
     def parse_expiration(amount: int, unit: str, max_minutes: int = MAX_EXPIRATION_MINUTES) -> int:
         """

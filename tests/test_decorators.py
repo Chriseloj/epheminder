@@ -95,40 +95,63 @@ def test_register_rate_limited_rate_exceeded_calls_backoff(monkeypatch):
 # --------------------------
 
 def test_require_login_happy_path(monkeypatch):
-    monkeypatch.setattr("cli.cli_decorators.session_manager", MagicMock(current_user="user1", access_token="token"))
+
+    monkeypatch.setattr(
+        "cli.cli_decorators.session_manager",
+        MagicMock(current_user="user1", access_token="token")
+    )
     monkeypatch.setattr("cli.cli_decorators.decode_token", lambda token: True)
 
     wrapper = require_login()(dummy_func)
     result = wrapper(db_session=MagicMock())
     assert result == "success"
 
+
 def test_require_login_no_user(monkeypatch, caplog):
-    monkeypatch.setattr("cli.cli_decorators.session_manager", MagicMock(current_user=None))
+
+    monkeypatch.setattr(
+        "cli.cli_decorators.session_manager",
+        MagicMock(current_user=None)
+    )
     wrapper = require_login()(dummy_func)
 
     with caplog.at_level("INFO"):
         result = wrapper(db_session=MagicMock())
         assert "Unauthorized CLI access attempt" in caplog.text
-        assert result is None
+        assert result["success"] is False
+        assert result["error"] == "Please login first."
+
 
 def test_require_login_authentication_required(monkeypatch, caplog):
+
     mock_session = MagicMock(current_user="user1", access_token="token")
     monkeypatch.setattr("cli.cli_decorators.session_manager", mock_session)
-    monkeypatch.setattr("cli.cli_decorators.decode_token", lambda token: (_ for _ in ()).throw(AuthenticationRequiredError()))
+   
+    monkeypatch.setattr(
+        "cli.cli_decorators.decode_token",
+        lambda token: (_ for _ in ()).throw(AuthenticationRequiredError())
+    )
 
     wrapper = require_login()(dummy_func)
     with caplog.at_level("WARNING"):
         result = wrapper(db_session=MagicMock())
         assert "Authentication required" in caplog.text
-        assert result is None
+        assert result["success"] is False
+        assert result["error"] == "Please login again."
+
 
 def test_require_login_invalid_token(monkeypatch, caplog):
+    
     mock_session = MagicMock(current_user="user1", access_token="token")
     monkeypatch.setattr("cli.cli_decorators.session_manager", mock_session)
-    monkeypatch.setattr("cli.cli_decorators.decode_token", lambda token: (_ for _ in ()).throw(Exception("fail")))
+    monkeypatch.setattr(
+        "cli.cli_decorators.decode_token",
+        lambda token: (_ for _ in ()).throw(Exception("fail"))
+    )
 
     wrapper = require_login()(dummy_func)
     with caplog.at_level("ERROR"):
         result = wrapper(db_session=MagicMock())
         assert "Unexpected login error" in caplog.text
-        assert result is None
+        assert result["success"] is False
+        assert result["error"] == "Invalid session. Please login again."
