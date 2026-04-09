@@ -2,6 +2,24 @@ import re
 import unicodedata
 
 class Tagger:
+    """
+    Utility class for generating tags from text content.
+
+    Responsibilities:
+    - Normalize text by removing accents and converting to lowercase.
+    - Generate tags based on predefined keyword mappings (Spanish and English).
+    - Suggest tags automatically for reminders or tasks.
+
+    Attributes:
+        STOPWORDS_ES (set[str]): Spanish stopwords to ignore.
+        STOPWORDS_EN (set[str]): English stopwords to ignore.
+        STOPWORDS (set[str]): Combined Spanish and English stopwords.
+        SUGGESTED_TAGS_ES (set[str]): Predefined suggested tags in Spanish.
+        SUGGESTED_TAGS_EN (set[str]): Predefined suggested tags in English.
+        SUGGESTED_TAGS (set[str]): Combined suggested tags.
+        SUGGESTED_TAGS_MAP (dict[str, set[str]]): Maps each suggested tag to a set of keywords.
+    """
+
     # 🚫 Stopwords in Spanish and English
     STOPWORDS_ES = {"el", "la", "los", "las", "un", "una", "y", "de", "del", "para", "en", "con", "a"}
     STOPWORDS_EN = {"the", "a", "an", "and", "of", "for", "in", "on", "with", "to"}
@@ -29,9 +47,16 @@ class Tagger:
     @staticmethod
     def normalize_text(text: str) -> str:
         """
-        Normalize the text:
-        - Convert to lowercase
-        - Remove accents
+        Normalize text for consistent tag matching.
+
+        - Converts text to lowercase.
+        - Removes accents and special characters (e.g., "á" → "a").
+
+        Args:
+            text (str): Input text to normalize.
+
+        Returns:
+            str: Normalized text suitable for keyword matching.
         """
         text = unicodedata.normalize("NFKD", text).encode("ASCII", "ignore").decode("utf-8")
         return text.lower()
@@ -39,8 +64,23 @@ class Tagger:
     @staticmethod
     def generate_tags(text: str) -> list[str]:
         """
-        Generate unique tags from text based only on suggested tags mapping.
-        """
+        Generate tags from a text string based on predefined suggested tags mapping.
+
+        - Uses only `SUGGESTED_TAGS_MAP` to detect relevant tags.
+        - Normalizes both input text and keywords for case-insensitive and accent-insensitive matching.
+        - Ensures tags are unique and preserves the order of detection.
+        - Ignores words not listed in the mapping (stopwords are implicitly ignored by mapping).
+
+        Args:
+            text (str): Input text to extract tags from.
+
+        Returns:
+            list[str]: List of unique tags detected in the text. Could be empty if no keywords match.
+
+        Example:
+            text = "Tengo una reunión importante mañana"
+            generate_tags(text) -> ["reunión", "importante"]
+    """
         text_normalized = Tagger.normalize_text(text)
         tags = []
 
