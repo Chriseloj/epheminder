@@ -45,6 +45,11 @@ def _selected_print(reminders):
         safe_print(format_reminder(r))
 
 def format_reminder(reminder):
+    """
+    Formats a reminder object for CLI display.
+
+    Includes tags if available, otherwise displays basic reminder info.
+    """
 
     tags = getattr(reminder, "tags", [])
     text = getattr(reminder, "text", "")
@@ -100,6 +105,25 @@ def handle_login(session_service, authentication_service, user_service, db_sessi
     }
 
 def handle_create_reminder(session_service, reminder_repo):
+    """
+    Handles user interaction for creating a reminder.
+
+    Flow:
+    - Collects and validates user input (text, expiration)
+    - Generates suggested tags using the Tagger
+    - Allows the user to accept or reject suggested tags
+    - Calls the application layer to create the reminder
+    - Displays the created reminder with optional tags
+
+    Smart-tagging:
+    - Tags are suggested automatically based on reminder text
+    - Users can choose to accept or ignore them
+    - Accepted tags are passed to the application layer
+
+    Returns:
+        dict: Standard CLI response with created reminder data
+    """
+
     print_section("Create Reminder")
 
     # -----------------------------

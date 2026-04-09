@@ -14,15 +14,46 @@ from config import MAX_EXPIRATION_MINUTES, MAX_TEXT_LENGTH, MAX_REMINDERS_PER_US
 
 logger = logging.getLogger(__name__)
 
+"""
+ReminderService
+
+Application-level domain service for managing reminders.
+
+Responsibilities:
+- CRUD operations for reminders (create, read, update, delete)
+- Enforce deny-by-default authorization for each operation
+- Validate input (UUIDs, expiration, text length)
+- Auto-generate tags if none are provided
+- Audit logging of actions
+- Enforce application rules (max reminders per user, max text length, expiration limits)
+
+Raises:
+- MissingDataError: When repository is not provided
+- ReminderTextTooLongError: When text exceeds MAX_TEXT_LENGTH
+- InvalidExpirationError: When expiration is out of allowed range
+- MaxRemindersReachedError: When user has reached the max reminders
+"""
+
 # 🔐 ReminderService
 class ReminderService:
 
     @staticmethod
     def get_user_reminder(user, reminder_id, reminder_repo):
         """
-        Retrieve a reminder by ID for a given user.
-        - Deny-by-default: authorization is checked before returning the reminder.
-        - Returns the reminder object or None if it does not exist.
+        Retrieve a single reminder by ID for the given user.
+
+        - Validates that the ID is a proper UUID.
+        - Enforces deny-by-default authorization: users can only read their own reminders.
+        - Returns the ReminderDB object or None if it does not exist.
+        - Logs the access for auditing.
+
+        Args:
+            user (UserDB): The user requesting the reminder
+            reminder_id (str): UUID of the reminder
+            reminder_repo: Repository instance
+
+        Returns:
+            ReminderDB or None
         """
 
         # Validate that the reminder_id is a proper UUID
@@ -58,6 +89,13 @@ class ReminderService:
 
     @staticmethod
     def _check_max_reminders(user, reminder_repo):
+        """
+        Check if the user has reached the maximum number of reminders.
+
+        Raises:
+            MaxRemindersReachedError: If the user already has MAX_REMINDERS_PER_USER
+        """
+
         # Check maximum reminders per user
         current_count = reminder_repo.count_by_user(user.id)
         if current_count >= MAX_REMINDERS_PER_USER:
@@ -76,6 +114,33 @@ class ReminderService:
         reminder_repo=None,
         tags: list = None,
     ) -> "ReminderDB":
+        
+        """
+        Create a new reminder.
+
+        - Validates max reminders per user.
+        - Enforces deny-by-default authorization.
+        - Converts expiration to minutes and validates limits.
+        - Generates tags automatically if not provided.
+        - Logs creation for auditing.
+
+        Args:
+            user (UserDB): Owner of the reminder
+            text (str): Reminder text
+            amount (int): Time quantity
+            unit (str): Time unit ("minutes", "hours", "days")
+            reminder_repo: Repository instance (required)
+            tags (list[str], optional): User-provided tags
+
+        Returns:
+            ReminderDB: The created reminder object
+
+        Raises:
+            MissingDataError
+            MaxRemindersReachedError
+            ReminderTextTooLongError
+            InvalidExpirationError
+        """
     
         if reminder_repo is None:
             raise MissingDataError()
@@ -117,14 +182,20 @@ class ReminderService:
     @staticmethod
     def read_reminder(user: "UserDB", reminder_id: str, reminder_repo=None) -> "ReminderDB":
         """
-        Retrieve a reminder by ID for the given user from the database.
+        Retrieve a reminder by UUID.
 
-        - Validates that the ID is a proper UUID.
-        - Enforces authorization (deny-by-default).
-        - Returns the ReminderDB object or None if it does not exist.
+        - Validates UUID.
+        - Checks authorization.
+        - Logs read for audit.
+        - Returns None if reminder does not exist.
 
-        Raises:
-            MissingDataError: if db_session is missing
+        Args:
+            user (UserDB)
+            reminder_id (str)
+            reminder_repo
+
+        Returns:
+            ReminderDB or None
         """
 
         if reminder_repo is None:
@@ -219,23 +290,22 @@ class ReminderService:
     @staticmethod
     def delete_reminder(user: "UserDB", reminder_id: str, reminder_repo=None) -> bool:
         """
-        Delete a reminder by its ID for the given user.
+        Delete a reminder.
 
-        - Validates that `reminder_id` is a proper UUID.
-        - Enforces deny-by-default authorization (user can only delete their own reminders).
-        - Deletes the reminder from the repository.
-        - Logs the deletion for auditing purposes.
+        - Validates UUID.
+        - Enforces deny-by-default authorization.
+        - Logs deletion for audit.
 
         Args:
-            user (UserDB): The user attempting to delete the reminder.
-            reminder_id (str): UUID of the reminder to delete.
-            reminder_repo: Reminder repository instance. Required.
+            user (UserDB)
+            reminder_id (str)
+            reminder_repo
 
         Returns:
-            bool: True if the reminder was deleted, False if the reminder was not found.
+            bool: True if deleted, False if not found
 
         Raises:
-            MissingDataError: If `reminder_repo` is not provided.
+            MissingDataError
         """
 
         if reminder_repo is None:
@@ -300,26 +370,21 @@ class ReminderService:
     @staticmethod
     def list_reminders(user: "UserDB", reminder_repo=None):
         """
-        Retrieve all active reminders for a given user.
+        Retrieve all active (non-expired) reminders for a user.
 
-        This method fetches all reminders associated with the specified user
-        and filters out any reminders that have already expired. Expired
-        reminders are determined by comparing the `expires_at` timestamp
-        against the current UTC time. Both timezone-aware and naive
-        datetimes are supported for compatibility with older records.
+        - Filters out reminders where expires_at <= now.
+        - Supports timezone-aware datetimes.
 
         Args:
-            user (UserDB): The user whose reminders are being retrieved.
-            reminder_repo: An instance of ReminderRepository used to fetch
-                        reminders from the database. Raises MissingDataError
-                        if not provided.
+            user (UserDB)
+            reminder_repo
 
         Returns:
-            List[ReminderDB]: A list of ReminderDB objects representing
-                                all active (non-expired) reminders for the user.
+            List[ReminderDB]: Active reminders
 
         Raises:
-            MissingDataError: If `reminder_repo` is not provided.
+            MissingDataError
+
         """
         if reminder_repo is None:
             raise MissingDataError()
@@ -339,8 +404,19 @@ class ReminderService:
         """
         Convert expiration amount and unit to minutes.
 
-        Validation is performed in the same unit provided by the user
-        to produce clearer error messages.
+        - Validates unit and range according to MAX_EXPIRATION_MINUTES.
+        - Provides user-friendly errors for invalid input.
+
+        Args:
+            amount (int)
+            unit (str): "minutes", "hours", "days"
+            max_minutes (int, optional)
+
+        Returns:
+            int: Expiration in minutes
+
+        Raises:
+            InvalidExpirationError
         """
 
         unit = unit.lower()

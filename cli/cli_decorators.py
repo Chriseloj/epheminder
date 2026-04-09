@@ -9,6 +9,27 @@ logger = logging.getLogger(__name__)
 
 
 def require_login(func=None):
+    """
+    Decorator that ensures a user is authenticated before executing a CLI action.
+
+    Behavior:
+    - Checks if a user is present in the session
+    - Validates the access token
+    - Clears the session if the token is invalid or expired
+    - Returns a standardized error response if authentication fails
+
+    Returns:
+        dict:
+            On failure:
+                {
+                    "success": False,
+                    "error": str
+                }
+
+    Notes:
+        - Designed for CLI handlers that follow the standard response contract
+        - Prevents execution of the wrapped function if authentication fails
+    """
 
     def decorator(f):
         @wraps(f)

@@ -7,6 +7,19 @@ import uuid
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy import JSON
 
+"""
+SQLAlchemy ORM models for the Epheminder application.
+
+Includes:
+- UserDB: users and roles
+- ReminderDB: reminders with tags and expiration
+- RefreshTokenDB: refresh tokens for session management
+- LoginAttemptDB / RegisterAttemptDB: brute-force protection
+- RevokedTokenDB: revoked JWT tokens
+
+Used by repositories and services to persist and query application data.
+"""
+
 class UserDB(Base):
     __tablename__ = "users"
 

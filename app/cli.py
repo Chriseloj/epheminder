@@ -23,8 +23,26 @@ from core.session import session_manager as core_session_manager
 
 from config import MENU_WIDTH
 
+"""
+CLI entrypoint and dependency wiring for the application.
+
+Initializes services, defines menu actions, and handles
+the interaction loop and result formatting.
+"""
 
 def run_cli():
+    """
+    Starts the interactive CLI loop.
+
+    This function:
+    - Builds all dependencies
+    - Displays menu options
+    - Executes selected actions
+    - Handles errors and output formatting
+
+    Raises:
+        CLIExit: When the user chooses to exit the application.
+    """
     # ------------------------------
     # Dependencies (Composition Root)
     # ------------------------------
